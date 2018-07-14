@@ -11,8 +11,7 @@ from Uniform_Experience_Replay_Buffer import Uniform_Experience_Replay_Buffer as
 
 ########################################################################################################################
 #CLASS EXPLANATION: In this class, we have implemented the Double DQN algorithm with
-#dueling architextures and (possibly prioritized) experience replay, as described in the following 
-#papers:
+#dueling architextures and experience replay, as described in the following papers:
 
 #(1) Playing Atari with Deep Reinforcement Learning (2013)
 #by Google DeepMind authored by Hado van Hasselt et al: https://arxiv.org/pdf/1509.06461.pdf
