@@ -10,7 +10,7 @@ from Uniform_Experience_Replay_Buffer import Uniform_Experience_Replay_Buffer as
 
 
 ########################################################################################################################
-#CLASS EXPLANATION: In this class, we will implement the Double DQN algorithm with
+#CLASS EXPLANATION: In this class, we have implemented the Double DQN algorithm with
 #dueling architextures and (possibly prioritized) experience replay, as described in the following 
 #papers:
 
