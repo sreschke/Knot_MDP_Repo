@@ -8,7 +8,3 @@ class Start_States_Buffer(object):
 
     def get_seed_slice(self):
         pass
-
-
-
-
