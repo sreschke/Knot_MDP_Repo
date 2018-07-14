@@ -1,0 +1,15 @@
+Instantiate Replay Buffer, Environement, Double Dueling DQN
+Fill Buffer
+Initialize state
+Repeat (for each epoch):
+	For N actions:
+		get epsilon-greedy action
+		take action; get reward, next_state, terminal
+		add (state, action, reward, next_state, terminal) to replay buffer
+		if terminal:
+			get new starting state
+		else:
+			state=next_state
+	get batch from replay buffer
+	train online_network using batch
+	copy online_weights to target weights every 1000 or so epochs
