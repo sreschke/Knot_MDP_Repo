@@ -328,3 +328,8 @@ ASALocalRun/
 
 # MFractors (Xamarin productivity tool) working folder 
 .mfractor/
+
+10x10GridWorld.py
+Grid_World_Environment.py
+Grid_World_Environment_rewards2.py
+Grid_World_Test.py
