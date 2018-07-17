@@ -19,8 +19,7 @@ class SliceEnvironmentWrapper(Environment):
                             max_braid_length=self.max_braid_length,
                             inaction_penalty=inaction_penalty)
     def initialize_state(self):
-        braid=random.choice(self.starting_braids)
-        self.slice=SliceEnv(braid_word=braid, max_braid_index=self.max_braid_index, max_braid_length=self.max_braid_length)
+        self.slice=start_states_buffer.get_sample()
         return self.slice.encode_state()
     def take_action(self, action):
         reward, next_state, terminal=self.slice.action(action)
