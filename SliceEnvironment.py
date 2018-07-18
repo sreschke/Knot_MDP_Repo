@@ -67,7 +67,7 @@ class SliceEnv():
         for jjj in range(self.index):
             self.unlinked_strand_check(jjj+1)
             
-        self.state_tuple = self.get_state_tuple()
+        #self.state_tuple = self.get_state_tuple()
         self.encoded_state_length=len(self.encode_state())
         self.action_map={0: "Remove Crosing",
                          1: "Move Down",
@@ -84,24 +84,24 @@ class SliceEnv():
                          12: "Add Negative crossing"}                  
                     
     
-    def get_state_tuple(self):
-        braid_tuple = []
-        #pad zeros
-        for i in range(self.max_braid_length - len(self.word)):
-            braid_tuple.append(0)
-        # add crossings
-        for crossing in self.word:
-            braid_tuple.append(crossing)
-        #add componentlist components
-        for component in self.components:
-            braid_tuple.append(component)
-        #add eulerchar components
-        for component in self.components:
-            braid_tuple.append(self.eulerchar[component])
-        #add cursor positions
-        for cursor in self.cursor:
-            braid_tuple.append(cursor)
-        return tuple(braid_tuple)
+    #def get_state_tuple(self):
+    #    braid_tuple = []
+    #    #pad zeros
+    #    for i in range(self.max_braid_length - len(self.word)):
+    #        braid_tuple.append(0)
+    #    # add crossings
+    #    for crossing in self.word:
+    #        braid_tuple.append(crossing)
+    #    #add componentlist components
+    #    for component in self.components:
+    #        braid_tuple.append(component)
+    #    #add eulerchar components
+    #    for component in self.components:
+    #        braid_tuple.append(self.eulerchar[component])
+    #    #add cursor positions
+    #    for cursor in self.cursor:
+    #        braid_tuple.append(cursor)
+    #    return tuple(braid_tuple)
         
 
     # Takes as input a required position (corresponding to a letter in the braid word, indexed starting at 0), and an 
@@ -526,7 +526,9 @@ class SliceEnv():
     
     # Associating numbers 0 through 13 to the braid word actions defined above.
     def action(self,actionnumber):
-        old_score=self.score
+        big_penalty=10
+        old_encoding=self.encode_state()
+        old_score=self.eulerchar[1]
         if actionnumber==1:
             self.move_down()
         elif actionnumber==2:
@@ -554,17 +556,19 @@ class SliceEnv():
         elif actionnumber==0:
             self.rm_crossing()
         else:
-            print('Error in Action')
-        reward=-self.inaction_penalty
-        terminal = self.is_Terminal()
-        if terminal:
-            reward=reward+self.score
+            assert True==False, 'Error in action()'
+        for component in self.components:
+            assert component > 0, "Error"
+        encoding=self.encode_state()
+        if (old_encoding==encoding).all():
+            reward=-big_penalty
+        else:
+            reward=-self.inaction_penalty+self.eulerchar[1]-old_score
+        terminal=self.is_Terminal()
         #update state_tuple
-        self.state_tuple=self.get_state_tuple()
-        return reward, self.encode_state(), int(terminal)
-        
+        #self.state_tuple=self.get_state_tuple()
+        return reward, encoding, int(terminal)    
 
-        
     # One-hot encodes the cursor position and the braid word.  
     def one_hot(self):
         # Initializes the one-hot array.
@@ -639,6 +643,7 @@ class SliceEnv():
             self.print_braid()
             
     def encode_state(self, zero=0, one=1, display=False):
+        #By Spencer
         #Encodes our state for input into a neural network
         #The braid, component list, and cursor positions are one-hot-encoded while the Euler 
         #components are simply put in since they are unbounded.

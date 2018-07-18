@@ -2,6 +2,7 @@ from SliceEnvironment import SliceEnv
 import random
 from Environment import Environment
 from Start_States_Buffer import Start_States_Buffer as SSB
+import copy
 
 #An Environment Wrapper class needs to be defined for any given environment. Below is an implementation for
 #the SliceEnvironment. The initialize_state(), take_action(), and random_action() functions need to 
@@ -13,17 +14,18 @@ class SliceEnvironmentWrapper(Environment):
         self.max_braid_index=max_braid_index
         self.max_braid_length=max_braid_length
         self.start_states_buffer=start_states_buffer
-        self.start_state=self.initialize_state()
-        self.slice=SliceEnv(braid_word=self.start_word, 
-                            max_braid_index=self.max_braid_index,
-                            max_braid_length=self.max_braid_length,
-                            inaction_penalty=inaction_penalty)
+        self.slice=self.start_states_buffer.sample_state()
+
     def initialize_state(self):
-        self.slice=start_states_buffer.get_sample()
+        self.slice=self.start_states_buffer.sample_state()
         return self.slice.encode_state()
+
     def take_action(self, action):
         reward, next_state, terminal=self.slice.action(action)
+        if not terminal:
+            self.start_states_buffer.add_state(copy.copy(self.slice))
         return reward, next_state, terminal
+
     def random_action(self):
         #May need to adjust this so that shrinking and lengthing actions are picked with equal 
         #probability

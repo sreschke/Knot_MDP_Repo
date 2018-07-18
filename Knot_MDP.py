@@ -8,7 +8,7 @@ import numpy as np
 import time
 import copy
 
-load_stuff=True
+load_stuff=False
 ###############################################################################################
 #Disable AVX and AVX2 warnings
 ###############################################################################################
@@ -22,7 +22,7 @@ print("="*line_width)
 print("Pre-Training")
 print("="*line_width)
 print("Instantiating Replay Buffer...")
-buffer_capacity=1000000
+buffer_capacity=10000
 batch_size=64
 replay_buffer=UERB(capacity=buffer_capacity, batch_size=batch_size)
 load_buffer=load_stuff
@@ -32,25 +32,35 @@ if load_buffer:
     infile=open(buffer_file_name,'rb')
     loaded_deque=pickle.load(infile)
     infile.close()
-    replay_buffer.buffer=loaded_deque    
+    replay_buffer.buffer=loaded_deque
+###############################################################################################
+#Instantiate Start States Buffer
+###############################################################################################    
+start_states_capacity=1000
+max_braid_index=3
+max_braid_length=5
+seed_braids=[[1, 1, 1]]
+starts_buffer=SSB(capacity=start_states_capacity,
+                  max_braid_index=max_braid_index,
+                  max_braid_length=max_braid_length,
+                  seed_braids=seed_braids)
 ###############################################################################################
 #Instantiate Environment
 ###############################################################################################
 environment_name="SliceEnv"
 print("Instantiating " + environment_name + " Environment...")
-max_braid_index=5 
-max_braid_length=7
+#max_braid_index=3 
+#max_braid_length=5
 inaction_penalty=0.05
-starting_words=None #FIXME
 Environment=SEW(max_braid_index=max_braid_index,
                 max_braid_length=max_braid_length,
                 inaction_penalty=inaction_penalty,
-                starting_words=starting_words)
+                start_states_buffer=starts_buffer)
 ###############################################################################################
 #Instantiate Double Dueling DQN
 ###############################################################################################
 print("Instantiating Double Dueling DQN...")
-input_size=len(Environment.encode_state())
+input_size=len(Environment.slice.encode_state())
 output_size=13 #should be the number of actions
 architectures = {"Hidden": (256, 256, 256),
                  "Value": (128, 1),
@@ -104,7 +114,7 @@ else:
 #########################################################################################
 if not load_buffer:
     print("Filling Buffer...")
-    dddqn.initialize_replay_buffer()
+    dddqn.initialize_replay_buffer(display=False)
 #########################################################################################
 #Training
 #########################################################################################
@@ -112,7 +122,7 @@ print("="*line_width)
 print("Training")
 print("="*line_width)
 tick=time.time()
-state=dddqn.Environment.encode_state()
+state=dddqn.Environment.slice.encode_state()
 num_epochs=20000
 moves_per_epoch=4
 
@@ -120,7 +130,7 @@ moves_per_epoch=4
 #num_decrease_epochs.
 start_epsilon=1
 final_epsilon=0.1
-num_decrease_epochs=1000
+num_decrease_epochs=6000
 epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs 
 if not load_stuff:
 	dddqn.epsilon=start_epsilon
@@ -153,7 +163,6 @@ for i in range(num_epochs):
         loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
                                                       dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session)})
         print("Loss: {}".format(loss))
-        print_policy(dddqn, policy)
 tock=time.time()
 print(tock-tick)
 print("="*line_width)

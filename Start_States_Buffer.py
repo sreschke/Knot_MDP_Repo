@@ -1,10 +1,7 @@
 from SliceEnvironment import SliceEnv as SE
 import numpy as np
 import pandas as pd
-
-#Currently, we can't drop duplicate rows in the dataframe since lists and dictionaries 
-#are unhashable. We might need to store everything in tuples if we want to drop duplicate
-#rows.
+import copy
 
 class Start_States_Buffer(object):
     """A class that handles the start states used in the Knot MDP. The core datastructure is
@@ -18,7 +15,8 @@ class Start_States_Buffer(object):
         self.capacity=capacity
         self.columns=["Braid", "Braid_Length", "Components", "Cursor", "Eulerchar", "Largest_Index"]
         self.seed_frame=self.get_seed_frame()
-        self.explore_frame=pd.DataFrame(columns=self.columns)
+        self.explore_frame=copy.copy(self.seed_frame)
+        #self.explore_frame=pd.DataFrame(columns=self.columns)
 
     def get_seed_frame(self):
         seed_frame=pd.DataFrame(columns=self.columns) #initialize seed_frame
@@ -42,12 +40,12 @@ class Start_States_Buffer(object):
 
     def add_state(self, slice):
         #adds state data from slice to the explore_frame
-        values=[slice.word, #Braid
-               len(slice.word), #Braid_Length
-               slice.components, #Components
-               slice.cursor, #Cursor
-               slice.eulerchar, #Eulerchar
-               max(abs(slice.word))] #Largest_Index
+        values=[copy.copy(slice.word), #Braid
+               copy.copy(len(slice.word)), #Braid_Length
+               copy.copy(slice.components), #Components
+               copy.copy(slice.cursor), #Cursor
+               copy.copy(slice.eulerchar), #Eulerchar
+               copy.copy(max(abs(slice.word)))] #Largest_Index
         if len(self.explore_frame)==0: 
             explore_frame=[dict(zip(self.columns, values))]
             self.explore_frame=pd.DataFrame(explore_frame)
@@ -63,7 +61,6 @@ class Start_States_Buffer(object):
         """Samples a state from either the explore_frame or seed_frame using selections
         specified using the largest_index and largest_length parameters"""
         assert frame in ["Explore", "Seed"], "frame flag must be either \"Explore\" or \"Seed\""
-        
         #get appropriate data_frame
         if frame=="Explore":
             df=self.explore_frame
@@ -86,9 +83,9 @@ class Start_States_Buffer(object):
         assert len(df)>0, "len(df)=0 with current selections" 
         df=df.sample()
         slice=SE(braid_word=df["Braid"][0],
-                       max_braid_index=self.max_braid_index,
-                       max_braid_length=self.max_braid_length)
-        slice.components=df["Components"][0]
-        slice.eulerchar=df["Eulerchar"][0]
-        slice.cursor=df["Cursor"][0]
-        return slice.encode_state()
+                 max_braid_index=self.max_braid_index,
+                 max_braid_length=self.max_braid_length)
+        slice.components=copy.copy(df["Components"][0])
+        slice.eulerchar=copy.copy(df["Eulerchar"][0])
+        slice.cursor=copy.copy(df["Cursor"][0])
+        return slice

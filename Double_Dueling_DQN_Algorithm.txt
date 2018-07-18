@@ -1,4 +1,4 @@
-Instantiate Replay Buffer, Environement, Double Dueling DQN
+Instantiate Replay Buffer, Start States Buffer, Environment, Double Dueling DQN
 Fill Buffer
 Initialize state
 Repeat (for each epoch):
