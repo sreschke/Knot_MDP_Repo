@@ -50,10 +50,12 @@ class Start_States_Buffer(object):
             explore_frame=[dict(zip(self.columns, values))]
             self.explore_frame=pd.DataFrame(explore_frame)
             return
-        temp_frame=[dict(zip(self.columns, values))]
-        self.explore_frame=pd.concat([self.explore_frame, pd.DataFrame(temp_frame)])
+        #temp_frame=[dict(zip(self.columns, values))]
+        #self.explore_frame=pd.concat([self.explore_frame, pd.DataFrame(temp_frame)])
+        next_index=self.explore_frame.index.values.max()+1
+        self.explore_frame.loc[next_index]=values
         if len(self.explore_frame) > self.capacity:
-            self.explore_frame=self.explore_frame.iloc[1:] #drop first row
+            self.explore_frame=self.explore_frame.drop(self.explore_frame.index.values.min()) #drop first row
         assert len(self.explore_frame) <= self.capacity, "Start States Buffer has overfilled" 
         return
 
@@ -82,10 +84,10 @@ class Start_States_Buffer(object):
                           & (df["Braid_Length"] <= largest_length)]
         assert len(df)>0, "len(df)=0 with current selections" 
         df=df.sample()
-        slice=SE(braid_word=df["Braid"][0],
+        slice=SE(braid_word=df["Braid"].iloc[0],
                  max_braid_index=self.max_braid_index,
                  max_braid_length=self.max_braid_length)
-        slice.components=copy.copy(df["Components"][0])
-        slice.eulerchar=copy.copy(df["Eulerchar"][0])
-        slice.cursor=copy.copy(df["Cursor"][0])
+        slice.components=copy.copy(df["Components"].iloc[0])
+        slice.eulerchar=copy.copy(df["Eulerchar"].iloc[0])
+        slice.cursor=copy.copy(df["Cursor"].iloc[0])
         return slice

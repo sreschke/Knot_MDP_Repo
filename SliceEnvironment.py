@@ -62,7 +62,7 @@ class SliceEnv():
         # Initiate the score to 0.
         self.score=0
         # Initiate the cursor position.
-        self.cursor=[0,1]
+        self.cursor=np.array([0,1])
         # Run through the different strands.  If any strands corresponding to component number 1 are unlinked, delete them.
         for jjj in range(self.index):
             self.unlinked_strand_check(jjj+1)
