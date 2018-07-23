@@ -11,13 +11,15 @@ class Start_States_Buffer(object):
     initially identical to the seed_frame; as the algorithm explores states, they are added to 
     the explore_frame until the explore_frame reaches its capacity."""
     def __init__(self, seed_braids, max_braid_index, max_braid_length, capacity):
+        #Ensure seed_braids are compatable with max_braid_index and max_braid_length
         for braid in seed_braids:
             assert max(abs(np.array(braid)))<=max_braid_index-1, "Cannot initialize braid {} with max_braid_index {}".format(braid, max_braid_index)
-        self.seed_braids=seed_braids
+            assert len(braid)<=max_braid_length, "Cannot initialize braid {} with max_braid_length {}".format(braid, max_braid_length)
+        self.seed_braids=seed_braids #a list of braids we'd like the algorithm to solve
         self.max_braid_length=max_braid_length
         self.max_braid_index=max_braid_index
-        self.capacity=capacity
-        self.columns=["Braid", "Braid_Length", "Components", "Cursor", "Eulerchar", "Largest_Index"]
+        self.capacity=capacity #the capacity of the explore_frame
+        self.columns=["Braid", "Braid_Length", "Components", "Cursor", "Eulerchar", "Largest_Index"] #the columns of the dataframes
         self.seed_frame=self.construct_seed_frame()
         self.explore_frame=copy.copy(self.seed_frame)
 
@@ -47,7 +49,9 @@ class Start_States_Buffer(object):
         """Adds state data from slice to the explore_frame. We are currently using the .loc
         method to add rows, but there may be faster ways to accomplish this. Please see:
         https://stackoverflow.com/questions/41888080/python-efficient-way-to-add-rows-to-dataframe
-        """
+        for a dataframe with potentially faster additions see racoon:
+        https://github.com/rsheftel/raccoon"""
+
         values=[copy.copy(slice.word), #Braid
                copy.copy(len(slice.word)), #Braid_Length
                copy.copy(slice.components), #Components

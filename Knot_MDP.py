@@ -11,8 +11,8 @@ import time
 import copy
 import ast
 
-load_stuff=False #Controls whether the program should load the replay_buffer, matplotlib lists, etc.
-job_name="SliceEnv_try_1"
+load_stuff=False #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc.
+job_name="SliceEnv_try_1" #name used to label matplotlib lists, replay_buffer, etc.
 ###############################################################################################
 #Helper functions
 ###############################################################################################
@@ -29,11 +29,11 @@ def get_policy(braid, max_braid_index, max_braid_length, session):
     return actions
 
 def str_to_array(string):
-    #converts a string 
+    #converts a string representation of an array to an array. Called in load_start_states_buffer() function
     return ast.literal_eval(string.replace(",", "").replace("[ ", "[").replace("  ", " ").replace(" ", ","))  
 
 def load_start_states_buffer(file_name):
-    #loads the start_states_buffer in file_name and reformats the data
+    #loads the start_states_buffer in file_name and reformats the data. Returns a dataframe
     df=pd.read_csv(file_name)
     df["Braid"]=df["Braid"].apply(str_to_array)
     df["Components"]=df["Components"].apply(str_to_array)
@@ -85,10 +85,10 @@ if load_stuff:
 ###############################################################################################
 environment_name="SliceEnv"
 print("Instantiating " + environment_name + " Environment...")
-inaction_penalty=0.05
+move_penalty=0.05
 Environment=SEW(max_braid_index=max_braid_index,
                 max_braid_length=max_braid_length,
-                inaction_penalty=inaction_penalty,
+                inaction_penalty=move_penalty,
                 start_states_buffer=starts_buffer)
 ###############################################################################################
 #Instantiate Double Dueling DQN
@@ -170,7 +170,7 @@ moves_per_epoch=4
 
 #epsilon parameters to linearly decrease epsilon from start_epsilon to final_epsilon over
 #num_decrease_epochs. If a model is loaded (i.e. load_stuff=True), epsilon wil be the
-#final_epsilon
+#final_epsilon and will not change
 start_epsilon=1
 final_epsilon=0.1
 num_decrease_epochs=25000

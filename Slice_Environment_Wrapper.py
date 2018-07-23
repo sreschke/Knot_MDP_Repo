@@ -16,37 +16,41 @@ class SliceEnvironmentWrapper(Environment):
         self.start_states_buffer=start_states_buffer
         self.slice=self.start_states_buffer.sample_state()
 
-    def initialize_state(self):
+    def initialize_state(self, seed_prob=0.5):
         """When the algorithm reaches a terminal state, the state is initialized by calling
         this function. The start state gets pulled from the seed_frame with probability prob;
         otherwise, the state is pulled from the explore frame."""
-        prob=0.5 #probability of sampling from seed_frame
         x=random.random()
-        if x <= prob:
+        if x <= seed_prob:
             self.slice=self.start_states_buffer.sample_state(frame="Seed")
         else:
             self.slice=self.start_states_buffer.sample_state(frame="Explore")
         return self.slice.encode_state()
 
     def take_action(self, action):
+        """Takes action and adds the resulting state to the start states buffer."""
         reward, next_state, terminal=self.slice.action(action)
         if not terminal:
             self.start_states_buffer.add_state(copy.copy(self.slice))
         return reward, next_state, terminal
 
-    def random_action(self):
+    def random_action(self, action_probalities=[0.3, 0.5]):
         """Returns a random action. The actions in the sliceEnv MDP are categorized as "cursor moves",
         "shrinking moves", or "expanding moves". The action is pulled from shrinking_moves with
-        probability probabilities[0]. The action is pulled from cursor_moves with probability
-        probabilities[1]-probablities[0]. Otherwise, the action is pulled from expanding_moves"""
+        probability action_probabilities[0]. The action is pulled from cursor_moves with probability
+        action_probabilities[1]-action_probablities[0]. Otherwise, the action is pulled from 
+        expanding_moves"""
+        assert len(action_probalities)==2, "Length of action_probabilities must be 2"
+        for prob in action_probalities:
+            assert prob <= 1 and prob >= 0, "Check action_probabilities"
+        assert action_probalities[0]<=action_probalities[1], "Check action_probabilites"
         shrinking_moves=[0, 8]
         cursor_moves = [1, 2, 3, 4]        
         expanding_moves=[5, 6, 7, 9, 10, 11, 12]
         x=random.random()
-        probabilities=[0.3, 0.5]
-        if x < probabilities[0]:
+        if x < actino_probabilities[0]:
             return random.choice(shrinking_moves)
-        elif x < probabilities[1]:
+        elif x < action_probabilities[1]:
             return random.choice(cursor_moves)
         else:
             return random.choice(expanding_moves)
