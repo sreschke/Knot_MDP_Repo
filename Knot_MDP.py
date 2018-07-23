@@ -12,12 +12,12 @@ import copy
 import ast
 
 load_stuff=False #Controls whether the program should load the replay_buffer, matplotlib lists, etc.
-environment_name="SliceEnv"
-
+job_name="SliceEnv_try_1"
 ###############################################################################################
 #Helper functions
 ###############################################################################################
 def get_policy(braid, max_braid_index, max_braid_length, session):
+    """Used to get the current policies of the seed_braids before and after training"""
     max_sequence_length=30
     actions=[]
     slice=SE(braid, max_braid_index, max_braid_length)
@@ -29,7 +29,17 @@ def get_policy(braid, max_braid_index, max_braid_length, session):
     return actions
 
 def str_to_array(string):
-    return ast.literal_eval(string.replace("[ ", "[").replace("  ", " ").replace(" ", ","))  
+    #converts a string 
+    return ast.literal_eval(string.replace(",", "").replace("[ ", "[").replace("  ", " ").replace(" ", ","))  
+
+def load_start_states_buffer(file_name):
+    #loads the start_states_buffer in file_name and reformats the data
+    df=pd.read_csv(file_name)
+    df["Braid"]=df["Braid"].apply(str_to_array)
+    df["Components"]=df["Components"].apply(str_to_array)
+    df["Cursor"]=df["Cursor"].apply(str_to_array)
+    df["Eulerchar"]=df["Eulerchar"].apply(ast.literal_eval)
+    return df
     
 ###############################################################################################
 #Disable AVX and AVX2 warnings
@@ -48,7 +58,7 @@ replay_capacity=100000
 batch_size=64
 replay_buffer=UERB(capacity=replay_capacity, batch_size=batch_size)
 load_buffer=load_stuff
-buffer_file_name=environment_name+'_replay_buffer'
+buffer_file_name=job_name+'_replay_buffer'
 if load_buffer:
     print("Loading buffer...")    
     infile=open(buffer_file_name,'rb')
@@ -58,30 +68,23 @@ if load_buffer:
 ###############################################################################################
 #Instantiate Start States Buffer
 ###############################################################################################    
-start_states_file_name=environment_name+"_start_states_dataframe"
+start_states_file_name=job_name+"_start_states_dataframe"
 start_states_capacity=100000
 max_braid_index=3
 max_braid_length=5
-seed_braids=[[1, 1, 1]]
+seed_braids=[[1], [1, 1], [1, 1, 1]]
 starts_buffer=SSB(capacity=start_states_capacity,
                   max_braid_index=max_braid_index,
                   max_braid_length=max_braid_length,
                   seed_braids=seed_braids)
 if load_stuff:
-    print("Loading Start States Buffer")
-    df=pd.read_csv(start_states_file_name)
-    #Converts string representation of lists and dictionaries to original types
-    df["Braid"]=df["Braid"].apply(str_to_array)
-    df["Components"]=df["Components"].apply(str_to_array)
-    df["Cursor"]=df["Cursor"].apply(str_to_array)
-    df["Eulerchar"]=df["Eulerchar"].apply(ast.literal_eval)
-    starts_buffer.explore_frame=df
+    print("Loading Start States Buffer...")
+    starts_buffer.explore_frame=load_start_states_buffer(start_states_file_name)
 ###############################################################################################
 #Instantiate Environment
 ###############################################################################################
+environment_name="SliceEnv"
 print("Instantiating " + environment_name + " Environment...")
-#max_braid_index=3 
-#max_braid_length=5
 inaction_penalty=0.05
 Environment=SEW(max_braid_index=max_braid_index,
                 max_braid_length=max_braid_length,
@@ -96,9 +99,9 @@ output_size=13 #should be the number of actions
 architectures = {"Hidden": (256, 256, 256),
                  "Value": (128, 1),
                  "Advantage": (128, output_size)}
-transfer_rate=2000
+transfer_rate=2000 #how often to copy weights from online network to target network
 gamma=0.99
-learning_rate=0.0000001
+learning_rate=0.000000001
 sess=tf.Session()
 dddqn = DDDQN(input_size=input_size,
               output_size=output_size,
@@ -112,7 +115,7 @@ dddqn = DDDQN(input_size=input_size,
 ##########################################################################################
 #Restore model or Initialize Weights
 ##########################################################################################
-model_path=environment_name+"_model.ckpt"
+model_path=job_name+"_model.ckpt"
 saver=tf.train.Saver()
 restore=load_stuff
 if restore:
@@ -126,20 +129,20 @@ else:
 #Restore/Declare lists for matplotlib
 ##########################################################################################
 #lists to store values for graphs
-store_rate=100 #how often to store values
+store_rate=100 #how often (in epochs) to store values
 load_arrays=load_stuff
-losses_file_name=environment_name+"_losses"
-lr_file_name=environment_name+"_learning_rates"
-eps_file_name=environment_name+"_epsilons"
-if not load_arrays:
-    losses=[]
-    learning_rates=[]
-    epsilons=[]
-else:
+losses_file_name=job_name+"_losses"
+lr_file_name=job_name+"_learning_rates"
+eps_file_name=job_name+"_epsilons"
+if load_arrays:
     print("Loading lists for matplotlib...")
     losses=list(np.load(losses_file_name))
     learning_rates=list(np.load(lr_file_name))
     epsilons=list(np.load(eps_file_name))
+else:
+    losses=[]
+    learning_rates=[]
+    epsilons=[]
 ###############################################################################################
 #Get pre-training policies
 ###############################################################################################
@@ -150,7 +153,7 @@ for braid in seed_braids:
 #########################################################################################
 #Fill buffer
 #########################################################################################
-euler_char_reset=-10 #algorithm will initialize state if eulerchar[1] falls below euler_char_reset
+euler_char_reset=-3 #algorithm will initialize state if eulerchar[1] falls below euler_char_reset
 if not load_buffer:
     print("Filling Buffer...")
     dddqn.initialize_replay_buffer(display=False, euler_char_reset=euler_char_reset)
@@ -162,14 +165,15 @@ print("Training")
 print("="*line_width)
 tick=time.time()
 state=dddqn.Environment.slice.encode_state()
-num_epochs=40000
+num_epochs=50000
 moves_per_epoch=4
 
 #epsilon parameters to linearly decrease epsilon from start_epsilon to final_epsilon over
-#num_decrease_epochs.
+#num_decrease_epochs. If a model is loaded (i.e. load_stuff=True), epsilon wil be the
+#final_epsilon
 start_epsilon=1
 final_epsilon=0.1
-num_decrease_epochs=10000
+num_decrease_epochs=25000
 epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs 
 if not load_stuff:
 	dddqn.epsilon=start_epsilon
@@ -181,7 +185,7 @@ for i in range(num_epochs):
         action=dddqn.epsilon_greedy_action(state)
         reward, next_state, terminal = dddqn.Environment.take_action(action)
         dddqn.replay_buffer.add((state, action, reward, next_state, terminal))
-        if terminal or dddqn.Environment.slice.eulerchar[1]<=euler_char_reset:
+        if terminal or dddqn.check_eulerchars(euler_char_reset):
             state=dddqn.Environment.initialize_state()
         else:
             state=next_state

@@ -4,8 +4,12 @@ import pandas as pd
 import copy
 
 class Start_States_Buffer(object):
-    """A class that handles the start states used in the Knot MDP. The core datastructure is
-    a pandas dataframe."""
+    """A class that handles the start states used in the Knot MDP. Important members include the
+    seed_frame and the explore_frame, which are both pandas dataframes. The column names of the 
+    dataframes are stored in the class member columns. The seed_frame holds the data 
+    corresponding to the knots we'd like to solve with the algorithm. The explore frame is
+    initially identical to the seed_frame; as the algorithm explores states, they are added to 
+    the explore_frame until the explore_frame reaches its capacity."""
     def __init__(self, seed_braids, max_braid_index, max_braid_length, capacity):
         for braid in seed_braids:
             assert max(abs(np.array(braid)))<=max_braid_index-1, "Cannot initialize braid {} with max_braid_index {}".format(braid, max_braid_index)
@@ -14,11 +18,12 @@ class Start_States_Buffer(object):
         self.max_braid_index=max_braid_index
         self.capacity=capacity
         self.columns=["Braid", "Braid_Length", "Components", "Cursor", "Eulerchar", "Largest_Index"]
-        self.seed_frame=self.get_seed_frame()
+        self.seed_frame=self.construct_seed_frame()
         self.explore_frame=copy.copy(self.seed_frame)
-        #self.explore_frame=pd.DataFrame(columns=self.columns)
 
-    def get_seed_frame(self):
+    def construct_seed_frame(self):
+        """Constructs the seed_frame using the seed_braids passed into the 
+        constructor"""
         seed_frame=pd.DataFrame(columns=self.columns) #initialize seed_frame
         for braid in self.seed_braids:
             slice=SE(braid_word=braid, 
@@ -39,7 +44,10 @@ class Start_States_Buffer(object):
         return seed_frame
 
     def add_state(self, slice):
-        #adds state data from slice to the explore_frame
+        """Adds state data from slice to the explore_frame. We are currently using the .loc
+        method to add rows, but there may be faster ways to accomplish this. Please see:
+        https://stackoverflow.com/questions/41888080/python-efficient-way-to-add-rows-to-dataframe
+        """
         values=[copy.copy(slice.word), #Braid
                copy.copy(len(slice.word)), #Braid_Length
                copy.copy(slice.components), #Components
@@ -50,8 +58,6 @@ class Start_States_Buffer(object):
             explore_frame=[dict(zip(self.columns, values))]
             self.explore_frame=pd.DataFrame(explore_frame)
             return
-        #temp_frame=[dict(zip(self.columns, values))]
-        #self.explore_frame=pd.concat([self.explore_frame, pd.DataFrame(temp_frame)])
         next_index=self.explore_frame.index.values.max()+1
         self.explore_frame.loc[next_index]=values
         if len(self.explore_frame) > self.capacity:
@@ -61,7 +67,9 @@ class Start_States_Buffer(object):
 
     def sample_state(self, largest_index=None, largest_length=None, frame="Explore"):
         """Samples a state from either the explore_frame or seed_frame using selections
-        specified using the largest_index and largest_length parameters"""
+        specified using the largest_index and largest_length parameters. For example, if
+        largest_index=5 and largest_length=6, then the function will sample a state
+        that has crossings no larger than 5 and a braid no longer than 6"""
         assert frame in ["Explore", "Seed"], "frame flag must be either \"Explore\" or \"Seed\""
         #get appropriate data_frame
         if frame=="Explore":

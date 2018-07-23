@@ -565,6 +565,8 @@ class SliceEnv():
         else:
             reward=-self.inaction_penalty+self.eulerchar[1]-old_score
         terminal=self.is_Terminal()
+        for component in self.components:
+            assert component in self.eulerchar.keys(), "Components and Eulerchar have become misaligned. Components: {} Eulerchar: {}".format(self.components, self.eulerchar)
         #update state_tuple
         #self.state_tuple=self.get_state_tuple()
         return reward, encoding, int(terminal)    

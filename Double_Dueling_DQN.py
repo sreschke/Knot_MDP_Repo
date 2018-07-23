@@ -117,8 +117,8 @@ class Double_Dueling_DQN():
 
 
     def initialize_replay_buffer(self, display=False, policy=None, euler_char_reset=-10):
-        #Fills replay buffer to it's capacity by collecting (s, a, r, s', t) tuples. Actions are 
-        #picked randomly until the buffer reaches its capacity.        
+        """Fills replay buffer to it's capacity by collecting (s, a, r, s', t) tuples. Actions are 
+        picked randomly until the buffer reaches its capacity."""        
         state=self.Environment.initialize_state()
         if display:
             print("Filling replay buffer...")
@@ -129,7 +129,7 @@ class Double_Dueling_DQN():
                 action=self.Environment.random_action()
             reward, next_state, terminal=self.Environment.take_action(action)
             self.replay_buffer.add((state, action, reward, next_state, terminal))
-            if terminal or self.Environment.slice.eulerchar[1]<=euler_char_reset:
+            if terminal or self.check_eulerchars(euler_char_reset):
                 state=self.Environment.initialize_state()
             else:
                 state=next_state
@@ -138,6 +138,14 @@ class Double_Dueling_DQN():
         if display:
             print("Replay buffer filled")
         return
+
+    def check_eulerchars(self, euler_char_reset):
+        """Checks to see if any of the eulerchars have fallen below euler_char_reset. If so,
+       returns true. If not, returns false"""
+        for compononent in self.Environment.slice.components:
+            if self.Environment.slice.eulerchar[compononent]<=euler_char_reset:
+                return True
+        return False
 
     def epsilon_greedy_action(self, state):
         if random.random() < self.epsilon:

@@ -17,7 +17,15 @@ class SliceEnvironmentWrapper(Environment):
         self.slice=self.start_states_buffer.sample_state()
 
     def initialize_state(self):
-        self.slice=self.start_states_buffer.sample_state()
+        """When the algorithm reaches a terminal state, the state is initialized by calling
+        this function. The start state gets pulled from the seed_frame with probability prob;
+        otherwise, the state is pulled from the explore frame."""
+        prob=0.5 #probability of sampling from seed_frame
+        x=random.random()
+        if x <= prob:
+            self.slice=self.start_states_buffer.sample_state(frame="Seed")
+        else:
+            self.slice=self.start_states_buffer.sample_state(frame="Explore")
         return self.slice.encode_state()
 
     def take_action(self, action):
@@ -27,10 +35,12 @@ class SliceEnvironmentWrapper(Environment):
         return reward, next_state, terminal
 
     def random_action(self):
-        #May need to adjust this so that shrinking and lengthing actions are picked with equal 
-        #probability
-        cursor_moves = [1, 2, 3, 4]
+        """Returns a random action. The actions in the sliceEnv MDP are categorized as "cursor moves",
+        "shrinking moves", or "expanding moves". The action is pulled from shrinking_moves with
+        probability probabilities[0]. The action is pulled from cursor_moves with probability
+        probabilities[1]-probablities[0]. Otherwise, the action is pulled from expanding_moves"""
         shrinking_moves=[0, 8]
+        cursor_moves = [1, 2, 3, 4]        
         expanding_moves=[5, 6, 7, 9, 10, 11, 12]
         x=random.random()
         probabilities=[0.3, 0.5]
