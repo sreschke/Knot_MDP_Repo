@@ -116,21 +116,24 @@ class Double_Dueling_DQN():
         self.train_op=self.get_train_operation() #operation that updates the weights in the online network
 
 
-    def initialize_replay_buffer(self, display=False, policy=None, euler_char_reset=-10):
+    def initialize_replay_buffer(self, display=False, policy=None, euler_char_reset=-10, max_actions_length=20):
         """Fills replay buffer to it's capacity by collecting (s, a, r, s', t) tuples. Actions are 
         picked randomly until the buffer reaches its capacity."""        
         state=self.Environment.initialize_state()
         if display:
             print("Filling replay buffer...")
+        actions_list=[]
         while len(self.replay_buffer.buffer) < self.replay_buffer.capacity:
             if policy is not None:
                 action=self.Environment.action_from_policy(policy=policy)
             else:
                 action=self.Environment.random_action()
+            actions_list.append(action)
             reward, next_state, terminal=self.Environment.take_action(action)
             self.replay_buffer.add((state, action, reward, next_state, terminal))
-            if terminal or self.check_eulerchars(euler_char_reset):
+            if terminal or self.check_eulerchars(euler_char_reset) or len(actions_list) > max_actions_length:
                 state=self.Environment.initialize_state()
+                actions_list=[]
             else:
                 state=next_state
             if display:
