@@ -251,7 +251,7 @@ for i in range(num_epochs):
         actions_list.append(action)
         reward, next_state, terminal = dddqn.Environment.take_action(action)
         dddqn.replay_buffer.add((state, action, reward, next_state, terminal))
-        if terminal or dddqn.check_eulerchars(euler_char_reset) or len(actions_list) > dddqn.max_actions_length:
+        if terminal or dddqn.check_eulerchars(euler_char_reset) or len(actions_list) > max_actions_length:
             state=dddqn.Environment.initialize_state()
             actions_list=[]
         else:
