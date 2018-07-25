@@ -12,7 +12,7 @@ import copy
 import ast
 
 load_stuff=False #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc.
-job_name="SliceEnv_try_3" #name used to label matplotlib lists, replay_buffer, model weights etc.
+job_name="SliceEnv_try_1" #name used to label files for matplotlib lists, replay_buffer, model weights etc.
 ###############################################################################################
 #Hyperpararameters
 ###############################################################################################
@@ -37,7 +37,7 @@ max_braid_length=8
 #Slice Environment Wrapper (Environment)
 action_probabilities=[0.3, 0.5] #see doc string for random_action() in Slice_Environment_Wrapper
 move_penalty=0.05 #penalty incurred for taking any action
-seed_prob=0.5
+seed_prob=0.5 #probability of picking from seed_frame when initializing state
 
 
 #Double Dueling DQN
@@ -54,15 +54,41 @@ euler_char_reset=-4 #algorithm will initialize state if any eulerchar falls belo
 #epsilon parameters to linearly decrease epsilon from start_epsilon to final_epsilon over
 #num_decrease_epochs. If a model is loaded (i.e. load_stuff=True), epsilon wil be the
 #final_epsilon and will not change.
+max_actions_length=20 #initialize_state() is called if an episode takes more actions than max_actions_length
 start_epsilon=1
 final_epsilon=0.3
-num_decrease_epochs=50000
+num_decrease_epochs=75000
 epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
 
 store_rate=100 #how often (in epochs) to store values for matplotlib lists
-num_epochs=100000 #how many epochs to run the algorithm for
+num_epochs=150000 #how many epochs to run the algorithm for
 moves_per_epoch=4
 assert(num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs")
+
+#construct hyperparameters dict
+hyperparameters={"replay_capacity": replay_capacity,
+                 "batch_size": batch_size,
+                 "seed_braids": seed_braids,
+                 "start_states_capacity": start_states_capacity,
+                 "max_braid_index": max_braid_index,
+                 "max_braid_length": max_braid_length,
+                 "action_probabilities": action_probabilities,
+                 "move_penalty": move_penalty,
+                 "seed_prob": seed_prob,
+                 "output_size": output_size,
+                 "architectures": architectures,
+                 "transfer_rate": transfer_rate,
+                 "gamma": gamma,
+                 "learning_rate": learning_rate,
+                 "max_actions_length": max_actions_length,
+                 "euler_char_reset": euler_char_reset,
+                 "start_epsilon": start_epsilon,
+                 "final_epsilon": final_epsilon,
+                 "num_decrease_epochs": num_decrease_epochs,
+                 "store_rate": store_rate,
+                 "num_epochs": num_epochs,
+                 "moves_per_epoch": moves_per_epoch}
+
 ###############################################################################################
 #Helper functions
 ###############################################################################################
@@ -90,17 +116,26 @@ def load_start_states_buffer(file_name):
     df["Components"]=df["Components"].apply(str_to_array)
     df["Cursor"]=df["Cursor"].apply(str_to_array)
     df["Eulerchar"]=df["Eulerchar"].apply(ast.literal_eval)
-    return df    
+    return df
+
+def print_hyperparameters(hyperparameters):
+    print("Hyperparameters:")
+    for key, value in hyperparameters.items():
+        print("\t{}={}".format(key, value))
 ###############################################################################################
 #Disable AVX and AVX2 warnings
 ###############################################################################################
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 ###############################################################################################
+#Print hyperparameters
+###############################################################################################
+line_width=100
+print("Starting " + job_name)
+print_hyperparameters(hyperparameters)
+###############################################################################################
 #Instantiate Replay Buffer
 ###############################################################################################
-print("Starting " + job_name)
-line_width=100
 print("="*line_width)
 print("Pre-Training")
 print("="*line_width)
@@ -209,13 +244,16 @@ if not load_stuff:
 else:
 	dddqn.epsilon=final_epsilon
 
+actions_list=[]
 for i in range(num_epochs):
     for j in range(moves_per_epoch):
         action=dddqn.epsilon_greedy_action(state)
+        actions_list.append(action)
         reward, next_state, terminal = dddqn.Environment.take_action(action)
         dddqn.replay_buffer.add((state, action, reward, next_state, terminal))
-        if terminal or dddqn.check_eulerchars(euler_char_reset):
+        if terminal or dddqn.check_eulerchars(euler_char_reset) or len(actions_list) > max_actions_length:
             state=dddqn.Environment.initialize_state()
+            actions_list=[]
         else:
             state=next_state
     states, actions, rewards, next_states, terminals=dddqn.replay_buffer.get_batch()

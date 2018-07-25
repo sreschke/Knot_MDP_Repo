@@ -1,18 +1,19 @@
-action_probabilites - list to control probability distribution for randomly picking actions
-architectures - the architexture of the neural networks
-euler_char_reset - algorithm will initialize state if any eulerchars falls below euler_char_reset
-batch_size - the size of the mini-batches used in training the online-network
-final_epsilon - the target epsilon the algorithm transitions to
-gamma - disount factor for future rewards
-learning_rate - controls the step size during gradient descent
-max_braid_index - the maximum index a braid in SliceEnv can have
-max_braid_length - the maximum length a braid in SliceEnv can have
-move_penalty - penalty the Knot_MDP algorithm incurrs for every move
-moves_per_epoch - how many (s, a, r, s', t) transitions to take for each epoch
-num_decrease_epochs - number of epochs to decrease epsilon from start_epsilon to final_epsilon
-num_epochs - number of epochs to train on
-replay_capacity - the capacity of the replay buffer
-seed_prob - probability a state is pulled from the seed_frame when a state is initialized
-start_epsilon - epsilon to use at the beginning of training
-start_states_capacity - the capacity of the explore_frame in the Start States Buffer
-transfer_rate - how often (in epochs) to copy weights from online network to target network
+action_probabilites:list[float] - list to control probability distribution for randomly picking actions
+architectures:dict[(string, int)] - the architexture of the neural networks
+euler_char_reset:int - algorithm will initialize state if any eulerchars falls below euler_char_reset
+batch_size:int - the size of the mini-batches used in training the online-network
+final_epsilon:float - the target epsilon the algorithm transitions to
+gamma:float - disount factor for future rewards
+learning_rate:float - controls the step size during gradient descent
+max_actions_length:int - initialize_state() is called if an episode takes more actions than max_actions_length
+max_braid_index:int - the maximum index a braid in SliceEnv can have
+max_braid_length:int - the maximum length a braid in SliceEnv can have
+move_penalty:float - penalty the Knot_MDP algorithm incurrs for every move
+moves_per_epoch:int - how many (s, a, r, s', t) transitions to take for each epoch
+num_decrease_epochs:int - number of epochs to decrease epsilon from start_epsilon to final_epsilon
+num_epochs:int - number of epochs to train on
+replay_capacity:int - the capacity of the replay buffer
+seed_prob:float - probability a state is pulled from the seed_frame when a state is initialized
+start_epsilon:float - epsilon to use at the beginning of training
+start_states_capacity:int - the capacity of the explore_frame in the Start States Buffer
+transfer_rate:int - how often (in epochs) to copy weights from online network to target network
