@@ -1,5 +1,6 @@
 action_probabilites - list to control probability distribution for randomly picking actions
 architectures - the architexture of the neural networks
+euler_char_reset - algorithm will initialize state if any eulerchars falls below euler_char_reset
 batch_size - the size of the mini-batches used in training the online-network
 final_epsilon - the target epsilon the algorithm transitions to
 gamma - disount factor for future rewards

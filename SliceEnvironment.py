@@ -525,7 +525,7 @@ class SliceEnv():
         print("Is Terminal:\t\t",self.is_Terminal())
     
     # Associating numbers 0 through 13 to the braid word actions defined above.
-    def action(self,actionnumber):
+    def action(self, actionnumber):
         big_penalty=10
         old_encoding=self.encode_state()
         old_score=self.eulerchar[1]
@@ -677,8 +677,13 @@ class SliceEnv():
         #Euler list encoding
         euler_encoding=np.array([], dtype=int)
         code=np.ones(len(self.components))*zero
-        for i in range(len(self.components)):
-            code[i]=self.eulerchar[self.components[i]]
+        try:
+            for i in range(len(self.components)):
+                code[i]=self.eulerchar[self.components[i]]
+        except KeyError:
+            print("Key Error: {}".format(self.components[i]))
+            print("Components: {}".format(self.components))
+            print("Eulerchar: {}".format(self.eulerchar))
         euler_encoding=np.concatenate([euler_encoding, code])
         
         encoded=np.concatenate([encoded, euler_encoding])
