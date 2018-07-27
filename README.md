@@ -5,9 +5,9 @@ In this class, we have implemented the Double DQN algorithm with dueling archite
  
 (1) Playing Atari with Deep Reinforcement Learning (2013)
 by Google DeepMind authored by Hado van Hasselt et al: https://arxiv.org/pdf/1509.06461.pdf
-Summary: Discusses the idea of a DQN and experience replay.
+Summary: Discusses the idea of a Deep Q Network (DQN) which is essentially a neural network parameterization of the tabular methods traditionally used in Q-learning. The paper also discusses the use of Experience Replay, a buffer storing transitions which are used to train the network during learning.
  
-2) Deep Reinforcement Learning with Double Q-learning (2015)
+(2) Deep Reinforcement Learning with Double Q-learning (2015)
 by Google DeepMind authored by Ziyu Wang et. al.: https://arxiv.org/pdf/1511.06581.pdf
 A detailed algorithm is given here: http://coach.nervanasys.com/algorithms/value_optimization/double_dqn/index.html
 Introduces the idea of using TWO networks, an online network and a target network. 
