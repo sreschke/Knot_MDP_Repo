@@ -1,6 +1,6 @@
 from Double_Dueling_DQN import Double_Dueling_DQN as DDDQN
 from Uniform_Experience_Replay_Buffer import Uniform_Experience_Replay_Buffer as UERB
-from Slice_Environment_Wrapper import SliceEnvironmentWrapper as SEW
+from Slice_Environment_Wrapper import Slice_Environment_Wrapper as SEW
 from Start_States_Buffer import Start_States_Buffer as SSB
 from SliceEnvironment import SliceEnv as SE
 import pickle
@@ -11,8 +11,8 @@ import time
 import copy
 import ast
 
-load_stuff=False #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc.
-job_name="SliceEnv_try_1" #name used to label files for matplotlib lists, replay_buffer, model weights etc.
+load_stuff=False #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc. from a previous training run
+job_name="SliceEnv_try_2" #name used to label files for matplotlib lists, replay_buffer, model weights etc.
 ###############################################################################################
 #Hyperpararameters
 ###############################################################################################
@@ -21,18 +21,10 @@ replay_capacity=100000
 batch_size=64
 
 #Start States Buffer
-seed_braids=[[1],
-             [1, 1],
-             [1, 1, 1],
-             [1, -2, 1, -2],
-             [1, 1, 1, 1],
-             [1, 1, 1, 1, 1],
-             [1, 1, 1, 2, -1, 2],
-             [1, 1, -2, 1, -2, -2],
-             [1, 1, 1, -2, 1, -2]] #The braids we want the algorithm to solve
+seed_braids=[[1], [1, -1], [1, -2, 2, 1, 1]]#The braids we want the algorithm to solve
 start_states_capacity=100000
-max_braid_index=4
-max_braid_length=8
+max_braid_index=3
+max_braid_length=5
 
 #Slice Environment Wrapper (Environment)
 action_probabilities=[0.3, 0.5] #see doc string for random_action() in Slice_Environment_Wrapper
@@ -45,27 +37,29 @@ output_size=13 #should be the number of actions the agent can take in the MDP
 architectures = {"Hidden": (256, 256, 256),
                  "Value": (128, 1),
                  "Advantage": (128, output_size)}
-transfer_rate=2000 #how often to copy weights from online network to target network
+transfer_rate=2000 #how often (in epochs) to copy weights from online network to target network
 gamma=0.99
 learning_rate=0.00000001
 
 #Training
-euler_char_reset=-4 #algorithm will initialize state if any eulerchar falls below euler_char_reset
+euler_char_reset=-8 #algorithm will initialize state if any eulerchar falls below euler_char_reset
+
 #epsilon parameters to linearly decrease epsilon from start_epsilon to final_epsilon over
 #num_decrease_epochs. If a model is loaded (i.e. load_stuff=True), epsilon wil be the
 #final_epsilon and will not change.
-max_actions_length=20 #initialize_state() is called if an episode takes more actions than max_actions_length
+max_actions_length=40 #initialize_state() is called if an episode takes more actions than max_actions_length
 start_epsilon=1
-final_epsilon=0.3
-num_decrease_epochs=75000
+final_epsilon=0.1
+num_decrease_epochs=5000
 epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
 
 store_rate=100 #how often (in epochs) to store values for matplotlib lists
-num_epochs=150000 #how many epochs to run the algorithm for
+report_policy_rate=1000 #how often (in epochs) to report the policies
+num_epochs=10000 #how many epochs to run the algorithm for
 moves_per_epoch=4
-assert(num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs")
+assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
 
-#construct hyperparameters dict
+#construct hyperparameters dict - used to print hyperparameters in .out file
 hyperparameters={"replay_capacity": replay_capacity,
                  "batch_size": batch_size,
                  "seed_braids": seed_braids,
@@ -86,19 +80,19 @@ hyperparameters={"replay_capacity": replay_capacity,
                  "final_epsilon": final_epsilon,
                  "num_decrease_epochs": num_decrease_epochs,
                  "store_rate": store_rate,
+                 "report_policy_rate": report_policy_rate,
                  "num_epochs": num_epochs,
                  "moves_per_epoch": moves_per_epoch}
 
 ###############################################################################################
 #Helper functions
 ###############################################################################################
-def get_policy(braid, max_braid_index, max_braid_length, session):
-    """Used to get the current policies of the seed_braids before and after training. Returns
+def get_policy(braid, max_braid_index, max_braid_length, session, max_actions_length):
+    """Used to get the current policies of the seed_braids during training. Returns
     an action list and the achieved score"""
-    max_sequence_length=30
     actions=[]
     slice=SE(braid, max_braid_index, max_braid_length)
-    while not slice.is_Terminal() and len(actions)<=max_sequence_length:
+    while not slice.is_Terminal() and len(actions)<=max_actions_length:
         action=sess.run(dddqn.online_network.forward_action_graph,
                         feed_dict={dddqn.online_network.X_in: np.reshape(slice.encode_state(), (1, dddqn.online_network.input_size))})[0]
         slice.action(action)
@@ -106,11 +100,11 @@ def get_policy(braid, max_braid_index, max_braid_length, session):
     return actions, slice.eulerchar[1]
 
 def str_to_array(string):
-    #converts a string representation of an array to an array. Called in load_start_states_buffer() function
+    """converts a string representation of an array to an array. Called in load_start_states_buffer() function"""
     return np.array(ast.literal_eval(string.replace(",", "").replace("[ ", "[").replace("  ", " ").replace(" ", ",")))  
 
 def load_start_states_buffer(file_name):
-    #loads the start_states_buffer in file_name and reformats the data. Returns a dataframe
+    """loads the start_states_buffer in file_name and reformats the data. Returns a dataframe"""
     df=pd.read_csv(file_name)
     df["Braid"]=df["Braid"].apply(str_to_array)
     df["Components"]=df["Components"].apply(str_to_array)
@@ -221,7 +215,7 @@ else:
 ###############################################################################################
 print("Getting pre-training policies...")
 for braid in seed_braids:
-    actions, score = get_policy(braid, max_braid_index, max_braid_length, sess)
+    actions, score = get_policy(braid, max_braid_index, max_braid_length, sess, max_actions_length)
     print("\tPolicy for braid {}: {}".format(braid, actions))
     print("Achieved score: {}".format(score))
 #########################################################################################
@@ -273,13 +267,19 @@ for i in range(num_epochs):
         loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
                                                       dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session)})
         print("Loss: {}".format(loss))
+    if i%report_policy_rate==0 and i>0:
+        print("Policies at epoch {}:".format(i))
+        for braid in seed_braids:
+            actions, score = get_policy(braid, max_braid_index, max_braid_length, sess, max_actions_length)
+            print("\tPolicy for braid {}: {}".format(braid, actions))
+            print("Achieved score: {}".format(score))
 tock=time.time()
-print(tock-tick)
+print("Training took {} seconds".format(tock-tick))
 print("="*line_width)
 print("Post-Training")
 print("="*line_width)
 #########################################################################################
-#Save model, pickle replay buffer, save losses, learning_rates, and epsilons, save dataFrames
+#Save model, pickle replay buffer, save losses, learning_rates, and epsilons, save dataFrame
 #########################################################################################
 save_path=saver.save(sess, "./"+model_path)
 print("="*line_width)
@@ -315,6 +315,6 @@ print("Explore frame saved in file: {}".format(start_states_file_name))
 ###############################################################################################
 print("Getting post-training policies...")
 for braid in seed_braids:
-    actions, score = get_policy(braid, max_braid_index, max_braid_length, sess)
+    actions, score = get_policy(braid, max_braid_index, max_braid_length, sess, max_actions_length)
     print("\tPolicy for braid {}: {}".format(braid, actions))
     print("Achieved score: {}".format(score))

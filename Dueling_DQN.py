@@ -59,12 +59,8 @@ class Dueling_DQN(object):
             return weights, biases
 
     def forward(self):
+        """Builds the computation graphs for the q_values and argmax of q_values."""
         with tf.name_scope("Forward"):
-            #Performs forward propagation on given input. Returns the computation graphs for
-            #the q_values and #argmax of q_values.
-            #If run is True, the computations graphs for the q_values/argmax are run and 
-            #a tensorflow session must be passed into the function.
-            
             #construct computation graph
             #hidden layers
             with tf.name_scope("Hidden"):

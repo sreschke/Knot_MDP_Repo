@@ -8,7 +8,7 @@ import copy
 #the SliceEnvironment. The initialize_state(), take_action(), and random_action() functions need to 
 #be implemented for each environment since these are called in the Double_Dueling_DQN methods.
 
-class SliceEnvironmentWrapper(Environment):
+class Slice_Environment_Wrapper(Environment):
     def __init__(self,
                  max_braid_index=5,
                  max_braid_length=7,
@@ -44,22 +44,26 @@ class SliceEnvironmentWrapper(Environment):
             self.start_states_buffer.add_state(copy.copy(self.slice))
         return reward, next_state, terminal
 
-    def random_action(self):
+    def random_action(self, uniform=False):
         """Returns a random action. The actions in the sliceEnv MDP are categorized as "cursor moves",
         "shrinking moves", or "expanding moves". The action is pulled from shrinking_moves with
         probability action_probabilities[0]. The action is pulled from cursor_moves with probability
         action_probabilities[1]-action_probablities[0]. Otherwise, the action is pulled from 
-        expanding_moves"""
-        for prob in self.action_probabilities:
-            assert prob <= 1 and prob >= 0, "Check action_probabilities"
-        assert self.action_probabilities[0]<=self.action_probabilities[1], "Check action_probabilites"
-        shrinking_moves=[0, 8]
-        cursor_moves = [1, 2, 3, 4]        
-        expanding_moves=[5, 6, 7, 9, 10, 11, 12]
-        x=random.random()
-        if x < self.action_probabilities[0]:
-            return random.choice(shrinking_moves)
-        elif x < self.action_probabilities[1]:
-            return random.choice(cursor_moves)
+        expanding_moves.
+        Actions are sampled uniformly if uniform=True"""
+        if uniform:
+            return random.choice(range(14))
         else:
-            return random.choice(expanding_moves)
+            for prob in self.action_probabilities:
+                assert prob <= 1 and prob >= 0, "Check action_probabilities"
+            assert self.action_probabilities[0]<=self.action_probabilities[1], "Check action_probabilites"
+            shrinking_moves=[0, 8]
+            cursor_moves = [1, 2, 3, 4]        
+            expanding_moves=[5, 6, 7, 9, 10, 11, 12]
+            x=random.random()
+            if x < self.action_probabilities[0]:
+                return random.choice(shrinking_moves)
+            elif x < self.action_probabilities[1]:
+                return random.choice(cursor_moves)
+            else:
+                return random.choice(expanding_moves)
