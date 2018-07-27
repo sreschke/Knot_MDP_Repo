@@ -12,23 +12,23 @@ import copy
 import ast
 
 load_stuff=False #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc. from a previous training run
-job_name="SliceEnv_try_2" #name used to label files for matplotlib lists, replay_buffer, model weights etc.
+job_name="SliceEnv_try_5" #name used to label files for matplotlib lists, replay_buffer, model weights etc.
 ###############################################################################################
 #Hyperpararameters
 ###############################################################################################
 #Replay buffer
-replay_capacity=100000
+replay_capacity=10000
 batch_size=64
 
 #Start States Buffer
-seed_braids=[[1], [1, -1], [1, -2, 2, 1, 1]]#The braids we want the algorithm to solve
-start_states_capacity=100000
+seed_braids=[[1]]#The braids we want the algorithm to solve
+start_states_capacity=20000
 max_braid_index=3
 max_braid_length=5
 
 #Slice Environment Wrapper (Environment)
 action_probabilities=[0.3, 0.5] #see doc string for random_action() in Slice_Environment_Wrapper
-move_penalty=0.05 #penalty incurred for taking any action
+move_penalty=0.1 #penalty incurred for taking any action
 seed_prob=0.5 #probability of picking from seed_frame when initializing state
 
 
@@ -125,7 +125,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 #Print hyperparameters
 ###############################################################################################
 line_width=100
-print("Starting " + job_name)
+print("Starting " + job_name + "...")
 print_hyperparameters(hyperparameters)
 ###############################################################################################
 #Instantiate Replay Buffer
@@ -150,7 +150,8 @@ start_states_file_name=job_name+"_start_states_dataframe"
 starts_buffer=SSB(capacity=start_states_capacity,
                   max_braid_index=max_braid_index,
                   max_braid_length=max_braid_length,
-                  seed_braids=seed_braids)
+                  seed_braids=seed_braids,
+                  move_penalty=move_penalty)
 if load_stuff:
     print("Loading Start States Buffer...")
     starts_buffer.explore_frame=load_start_states_buffer(start_states_file_name)

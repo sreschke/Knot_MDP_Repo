@@ -10,7 +10,7 @@ class Start_States_Buffer(object):
     corresponding to the knots we'd like to solve with the algorithm. The explore frame is
     initially identical to the seed_frame; as the algorithm explores states, they are added to 
     the explore_frame until the explore_frame reaches its capacity."""
-    def __init__(self, seed_braids, max_braid_index, max_braid_length, capacity):
+    def __init__(self, seed_braids, max_braid_index, max_braid_length, capacity, move_penalty):
         #Ensure seed_braids are compatable with max_braid_index and max_braid_length
         for braid in seed_braids:
             assert max(abs(np.array(braid)))<=max_braid_index-1, "Cannot initialize braid {} with max_braid_index {}".format(braid, max_braid_index)
@@ -19,6 +19,7 @@ class Start_States_Buffer(object):
         self.max_braid_length=max_braid_length
         self.max_braid_index=max_braid_index
         self.capacity=capacity #the capacity of the explore_frame
+        self.move_penalty=move_penalty
         self.columns=["Braid", "Braid_Length", "Components", "Cursor", "Eulerchar", "Largest_Index"] #the columns of the dataframes
         self.seed_frame=self.construct_seed_frame()
         self.explore_frame=copy.copy(self.seed_frame)
@@ -102,4 +103,5 @@ class Start_States_Buffer(object):
         slice.components=copy.copy(df["Components"].iloc[0])
         slice.eulerchar=copy.copy(df["Eulerchar"].iloc[0])
         slice.cursor=copy.copy(df["Cursor"].iloc[0])
+        slice.inaction_penalty=self.move_penalty
         return slice
