@@ -9,7 +9,8 @@ class Start_States_Buffer(object):
     dataframes are stored in the class member columns. The seed_frame holds the data 
     corresponding to the knots we'd like to solve with the algorithm. The explore frame is
     initially identical to the seed_frame; as the algorithm explores states, they are added to 
-    the explore_frame until the explore_frame reaches its capacity."""
+    the explore_frame until the explore_frame reaches its capacity. After reaching its capacity,
+    newer states displace states at the beginning of the buffer"""
     def __init__(self, seed_braids, max_braid_index, max_braid_length, capacity, move_penalty):
         #Ensure seed_braids are compatable with max_braid_index and max_braid_length
         for braid in seed_braids:
