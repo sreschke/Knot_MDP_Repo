@@ -15,7 +15,8 @@ class Slice_Environment_Wrapper(Environment):
                  inaction_penalty=0.05,
                  start_states_buffer=None,
                  action_probabilities=[0.3, 0.5],
-                 seed_prob=0.5):
+                 seed_prob=0.5,
+                 uniform=False):
         assert type(start_states_buffer) is not None, "A start_states_buffer must be passed into the SliceEnvironmentWrapper constructor"
         assert len(action_probabilities)==2, "Length of action_probabilities must be 2"
         Environment.__init__(self, num_actions=13)
@@ -25,6 +26,7 @@ class Slice_Environment_Wrapper(Environment):
         self.slice=self.start_states_buffer.sample_state()
         self.action_probabilities=action_probabilities
         self.seed_prob=seed_prob
+        self.uniform=uniform
 
     def initialize_state(self):
         """When the algorithm reaches a terminal state, the state is initialized by calling
@@ -44,22 +46,23 @@ class Slice_Environment_Wrapper(Environment):
             self.start_states_buffer.add_state(copy.copy(self.slice))
         return reward, next_state, terminal
 
-    def random_action(self, uniform=False):
-        """Returns a random action. The actions in the sliceEnv MDP are categorized as "cursor moves",
-        "shrinking moves", or "expanding moves". The action is pulled from shrinking_moves with
-        probability action_probabilities[0]. The action is pulled from cursor_moves with probability
+    def random_action(self):
+        """Returns a random action. Actions are sampled uniformly if self.uniform=True. Otherwise,
+        actions are pulled from distribution defined by self.action_probabilities: the actions 
+        in the sliceEnv MDP are categorized as "cursor moves", shrinking moves", or "expanding 
+        moves". The action is pulled from shrinking_moves with probability 
+        action_probabilities[0]. The action is pulled from cursor_moves with probability
         action_probabilities[1]-action_probablities[0]. Otherwise, the action is pulled from 
-        expanding_moves.
-        Actions are sampled uniformly if uniform=True"""
-        if uniform:
+        expanding_moves."""
+        if self.uniform:
             return random.choice(range(14))
         else:
             for prob in self.action_probabilities:
                 assert prob <= 1 and prob >= 0, "Check action_probabilities"
             assert self.action_probabilities[0]<=self.action_probabilities[1], "Check action_probabilites"
-            shrinking_moves=[0, 8]
-            cursor_moves = [1, 2, 3, 4]        
-            expanding_moves=[5, 6, 7, 9, 10, 11, 12]
+            shrinking_moves=[0, 8] #remove crossing and remove r2
+            cursor_moves = [1, 2, 3, 4] #move up, down, left, right
+            expanding_moves=[5, 6, 7, 9, 10, 11, 12] #cut, add positve/negative r2, r3, far comm, add/remove crossing
             x=random.random()
             if x < self.action_probabilities[0]:
                 return random.choice(shrinking_moves)

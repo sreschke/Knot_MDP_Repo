@@ -17,7 +17,7 @@ job_name="SliceEnv_try_2" #name used to label files for matplotlib lists, replay
 #Hyperpararameters
 ###############################################################################################
 #Replay buffer
-replay_capacity=100000
+replay_capacity=100000 #needs to be large enough to hold a representative sample of the state space
 batch_size=1024
 
 #Start States Buffer
@@ -27,7 +27,7 @@ seed_braids=[[1],
              [1, 1, 1],
              [1, -2, 2, 1, 1],
              [1, -2, 1, -2],
-             [1, -1, 1, -2, 1, -2]
+             [1, -1, 1, -2, 1, -2],
              [1, 1, 1, 1, 1],
              [1, 1, 2, -2, 1, 1]] #The braids we want the algorithm to solve. Info stored in seed_frame
 
@@ -39,6 +39,7 @@ max_braid_index=6
 max_braid_length=10
 
 #Slice Environment Wrapper (Environment)
+uniform=False #when picking a random action, actions are sampled uniformly if uniform=True. Otherwise, actions are selected using distribution defined with action_probabilites
 action_probabilities=[0.3, 0.5] #see doc string for random_action() in Slice_Environment_Wrapper
 move_penalty=0.1 #penalty incurred for taking any action
 seed_prob=0.5 #probability of picking from seed_frame when initializing state
@@ -55,11 +56,11 @@ learning_rate=0.00000001
 
 #Training
 euler_char_reset=-8 #algorithm will initialize state if any eulerchar falls below euler_char_reset
+max_actions_length=40 #initialize_state() is called if an episode takes more actions than max_actions_length
 
 #epsilon parameters to linearly decrease epsilon from start_epsilon to final_epsilon over
 #num_decrease_epochs. If a model is loaded (i.e. load_stuff=True), epsilon wil be the
 #final_epsilon and will not change.
-max_actions_length=40 #initialize_state() is called if an episode takes more actions than max_actions_length
 start_epsilon=1
 final_epsilon=0.1
 num_decrease_epochs=200000
@@ -78,6 +79,7 @@ hyperparameters={"replay_capacity": replay_capacity,
                  "start_states_capacity": start_states_capacity,
                  "max_braid_index": max_braid_index,
                  "max_braid_length": max_braid_length,
+                 "uniform": uniform,
                  "action_probabilities": action_probabilities,
                  "move_penalty": move_penalty,
                  "seed_prob": seed_prob,
@@ -177,7 +179,8 @@ Environment=SEW(max_braid_index=max_braid_index,
                 inaction_penalty=move_penalty,
                 start_states_buffer=starts_buffer,
                 action_probabilities=action_probabilities,
-                seed_prob=seed_prob)
+                seed_prob=seed_prob,
+                uniform=uniform)
 ###############################################################################################
 #Instantiate Double Dueling DQN
 ###############################################################################################

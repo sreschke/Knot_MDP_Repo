@@ -18,3 +18,4 @@ seed_prob:float - probability a state is pulled from the seed_frame when a state
 start_epsilon:float - epsilon to use at the beginning of training
 start_states_capacity:int - the capacity of the explore_frame in the Start States Buffer
 transfer_rate:int - how often (in epochs) to copy weights from online network to target network
+uniform - 

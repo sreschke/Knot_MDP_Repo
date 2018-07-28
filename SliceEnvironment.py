@@ -75,7 +75,7 @@ class SliceEnv():
                          3: "Move Left",
                          4: "Move Right",
                          5: "Cut",
-                         6: "Add Possitive r2",
+                         6: "Add Positive r2",
                          7: "Add Negative r2",
                          8: "Remove r2",
                          9: "r3",
