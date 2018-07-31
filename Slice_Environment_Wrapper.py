@@ -34,9 +34,9 @@ class Slice_Environment_Wrapper(Environment):
         seed_prob; otherwise, the state is pulled from the explore frame."""
         x=random.random()
         if x <= self.seed_prob:
-            self.slice=self.start_states_buffer.sample_state(frame="Seed")
+            self.slice=self.start_states_buffer.sample_state(queue="Seed")
         else:
-            self.slice=self.start_states_buffer.sample_state(frame="Explore")
+            self.slice=self.start_states_buffer.sample_state(queue="Explore")
         return self.slice.encode_state()
 
     def take_action(self, action):

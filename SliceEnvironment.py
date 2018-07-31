@@ -721,8 +721,8 @@ class SliceEnv():
         return encoded
     
     def encode_state(self, zero=0, one=1, display=False):
-        """updated encode_state() function. Uses python list.append method which is 100x faster
-        than numpy's concatenate method.
+        """updated encode_state() function. Uses lists instead of numpy arrays. New implementation
+        is 3-4 times faster.
         By Spencer
         Encodes our state for input into a neural network
         The braid, component list, and cursor positions are one-hot-encoded while the Euler 
@@ -730,11 +730,13 @@ class SliceEnv():
         braid encoding"""
         encoded=[]
         braid_encoding=[]
+        #padded zeros encoding
         for i in range(self.max_braid_length-len(self.word)):
             code=[zero for i in range(2*(self.index)-1)]
             index=self.index-1
             code[index]=one
             braid_encoding+=code
+        #crossings encoding
         for crossing in self.word:
             code=[zero for i in range(2*(self.index)-1)]
             index=self.index-1+crossing
@@ -743,12 +745,14 @@ class SliceEnv():
         
         encoded+=braid_encoding
         comp_encoding=[]
+        #component list encoding
         for component in self.components:
             code=[zero for i in range(self.index+1)]
             code[component-1]=one
             comp_encoding+=code
         encoded+=comp_encoding
         euler_encoding=[]
+        #Euler list encoding
         code=[zero for i in range(len(self.components))]
         try:
             for i in range(len(self.components)):
@@ -757,14 +761,16 @@ class SliceEnv():
             print("Key Error: {}".format(self.components[i]))
             print("Components: {}".format(self.components))
             print("Eulerchar: {}".format(self.eulerchar))
-        euler_encoding+=code
-        
+        euler_encoding+=code     
         encoded+=euler_encoding
+        #Cursor position encoding
+        #row cursor encoding
         cursor_encoding=[]
         code=[zero for i in range(self.max_braid_length+1)]
         index=self.cursor[0]
         code[index]=one
         cursor_encoding+=code
+        #column cursor encoding
         code=[zero for i in range(self.index-1)]
         index=self.cursor[1]-1
         code[index]=one
@@ -788,4 +794,5 @@ class SliceEnv():
             print("Full encoding: {}\n".format(encoded)) 
             print("="*line_length)
         return np.array(encoded)
+
             

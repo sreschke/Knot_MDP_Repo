@@ -1,7 +1,7 @@
 from Double_Dueling_DQN import Double_Dueling_DQN as DDDQN
 from Uniform_Experience_Replay_Buffer import Uniform_Experience_Replay_Buffer as UERB
 from Slice_Environment_Wrapper import Slice_Environment_Wrapper as SEW
-from Start_States_Buffer import Start_States_Buffer as SSB
+from Start_States_Buffer2 import Start_States_Buffer as SSB
 from SliceEnvironment import SliceEnv as SE
 import pickle
 import tensorflow as tf
@@ -59,12 +59,12 @@ max_actions_length=40 #initialize_state() is called if an episode takes more act
 #final_epsilon and will not change.
 start_epsilon=1
 final_epsilon=0.1
-num_decrease_epochs=5000
+num_decrease_epochs=200000
 epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
 
 store_rate=100 #how often (in epochs) to store values for matplotlib lists
 report_policy_rate=1000 #how often (in epochs) to report the policies
-num_epochs=10000 #how many epochs to run the algorithm for
+num_epochs=1000000 #how many epochs to run the algorithm for
 moves_per_epoch=4
 if not load_stuff:
     assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
@@ -114,14 +114,14 @@ def str_to_array(string):
     """converts a string representation of an array to an array. Called in load_start_states_buffer() function"""
     return np.array(ast.literal_eval(string.replace(",", "").replace("[ ", "[").replace("  ", " ").replace(" ", ",")))  
 
-def load_start_states_buffer(file_name):
-    """loads the start_states_buffer in file_name and reformats the data. Returns a dataframe"""
-    df=pd.read_csv(file_name)
-    df["Braid"]=df["Braid"].apply(str_to_array)
-    df["Components"]=df["Components"].apply(str_to_array)
-    df["Cursor"]=df["Cursor"].apply(str_to_array)
-    df["Eulerchar"]=df["Eulerchar"].apply(ast.literal_eval)
-    return df
+#def load_start_states_buffer(file_name):
+#    """loads the start_states_buffer in file_name and reformats the data. Returns a dataframe"""
+#    df=pd.read_csv(file_name)
+#    df["Braid"]=df["Braid"].apply(str_to_array)
+#    df["Components"]=df["Components"].apply(str_to_array)
+#    df["Cursor"]=df["Cursor"].apply(str_to_array)
+#    df["Eulerchar"]=df["Eulerchar"].apply(ast.literal_eval)
+#    return df
 
 def print_hyperparameters(hyperparameters):
     print("Hyperparameters:")
@@ -165,7 +165,10 @@ starts_buffer=SSB(capacity=start_states_capacity,
                   move_penalty=move_penalty)
 if load_stuff:
     print("Loading Start States Buffer...")
-    starts_buffer.explore_frame=load_start_states_buffer(start_states_file_name)
+    infile=open(start_states_file_name,'rb')
+    loaded_deque=pickle.load(infile)
+    infile.close()
+    starts_buffer.explore_queue=loaded_deque
 ###############################################################################################
 #Instantiate Environment
 ###############################################################################################
@@ -320,9 +323,10 @@ outfile=open(eps_file_name,'wb')
 np.save(outfile, epsilons)
 outfile.close()
 print("Epsilons saved in file: {}".format(eps_file_name))
-#save dataFrames
-dddqn.Environment.start_states_buffer.explore_frame.to_csv(start_states_file_name, index=False)
-print("Explore frame saved in file: {}".format(start_states_file_name))
+#save explore_queue
+outfile=open(start_states_file_name,'wb')
+pickle.dump(Environment.start_states_buffer.explore_queue, outfile)
+print("Explore queue saved in file: {}".format(start_states_file_name))
 ###############################################################################################
 #Get post-training policies
 ###############################################################################################
