@@ -24,6 +24,7 @@ class Start_States_Buffer(object):
         self.columns=["Braid", "Braid_Length", "Components", "Cursor", "Eulerchar", "Largest_Index"] #the columns of the dataframes
         self.seed_frame=self.construct_seed_frame()
         self.explore_frame=copy.copy(self.seed_frame)
+        self.next_index=len(self.explore_frame)
 
     def construct_seed_frame(self):
         """Constructs the seed_frame using the seed_braids passed into the 
@@ -64,10 +65,16 @@ class Start_States_Buffer(object):
             explore_frame=[dict(zip(self.columns, values))]
             self.explore_frame=pd.DataFrame(explore_frame)
             return
-        next_index=self.explore_frame.index.values.max()+1
-        self.explore_frame.loc[next_index]=values
-        if len(self.explore_frame) > self.capacity:
-            self.explore_frame=self.explore_frame.drop(self.explore_frame.index.values.min()) #drop first row
+        #next_index=self.explore_frame.index.values.max()+1
+        if len(self.explore_frame)<self.capacity:
+            self.explore_frame.loc[self.next_index]=values
+        else:
+            self.explore_frame.iloc[self.next_index]=values
+        self.next_index+=1
+        if self.next_index==self.capacity:
+            self.next_index=0
+        #if len(self.explore_frame) > self.capacity:
+        #    self.explore_frame=self.explore_frame.drop(self.explore_frame.index.values.min()) #drop first row
         assert len(self.explore_frame) <= self.capacity, "Start States Buffer has overfilled" 
         return
 

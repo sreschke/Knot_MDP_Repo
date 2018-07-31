@@ -644,12 +644,13 @@ class SliceEnv():
             self.info()
             self.print_braid()
             
-    def encode_state(self, zero=0, one=1, display=False):
-        #By Spencer
-        #Encodes our state for input into a neural network
-        #The braid, component list, and cursor positions are one-hot-encoded while the Euler 
-        #components are simply put in since they are unbounded.
-        #braid encoding
+    def old_encode_state(self, zero=0, one=1, display=False):
+        """Outdated encode_state() function. The extensive use of np.contatentate() was too slow
+        By Spencer
+        Encodes our state for input into a neural network
+        The braid, component list, and cursor positions are one-hot-encoded while the Euler 
+        components are simply put in since they are unbounded.
+        braid encoding"""
         encoded=np.array([], dtype=int)
         braid_encoding=np.array([], dtype=int)
         #padded zeros encoding
@@ -717,5 +718,74 @@ class SliceEnv():
             print("Full encoding length: {}".format(len(encoded)))
             print("Full encoding: {}\n".format(encoded)) 
             print("="*line_length)
-        return encoded        
+        return encoded
+    
+    def encode_state(self, zero=0, one=1, display=False):
+        """updated encode_state() function. Uses python list.append method which is 100x faster
+        than numpy's concatenate method.
+        By Spencer
+        Encodes our state for input into a neural network
+        The braid, component list, and cursor positions are one-hot-encoded while the Euler 
+        components are simply put in since they are unbounded.
+        braid encoding"""
+        encoded=[]
+        braid_encoding=[]
+        for i in range(self.max_braid_length-len(self.word)):
+            code=[zero for i in range(2*(self.index)-1)]
+            index=self.index-1
+            code[index]=one
+            braid_encoding+=code
+        for crossing in self.word:
+            code=[zero for i in range(2*(self.index)-1)]
+            index=self.index-1+crossing
+            code[index]=one
+            braid_encoding+=code
+        
+        encoded+=braid_encoding
+        comp_encoding=[]
+        for component in self.components:
+            code=[zero for i in range(self.index+1)]
+            code[component-1]=one
+            comp_encoding+=code
+        encoded+=comp_encoding
+        euler_encoding=[]
+        code=[zero for i in range(len(self.components))]
+        try:
+            for i in range(len(self.components)):
+                code[i]=self.eulerchar[self.components[i]]
+        except KeyError:
+            print("Key Error: {}".format(self.components[i]))
+            print("Components: {}".format(self.components))
+            print("Eulerchar: {}".format(self.eulerchar))
+        euler_encoding+=code
+        
+        encoded+=euler_encoding
+        cursor_encoding=[]
+        code=[zero for i in range(self.max_braid_length+1)]
+        index=self.cursor[0]
+        code[index]=one
+        cursor_encoding+=code
+        code=[zero for i in range(self.index-1)]
+        index=self.cursor[1]-1
+        code[index]=one
+        cursor_encoding+=code
+        
+        encoded+=cursor_encoding
+        if display:
+            line_length=100
+            print("="*line_length)
+            print("State Encoding")
+            self.info()
+            print("Braid encoding length: {}".format(len(braid_encoding)))
+            print("Braid encoding: {}\n".format(braid_encoding))
+            print("Component encoding length: {}".format(len(comp_encoding)))
+            print("Component encoding: {}\n".format(comp_encoding))
+            print("Euler encoding length: {}".format(len(euler_encoding)))
+            print("Euler encoding: {}\n".format(euler_encoding))
+            print("Cursor encoding length: {}".format(len(cursor_encoding)))
+            print("Cursor encoding: {}]\n".format(cursor_encoding))
+            print("Full encoding length: {}".format(len(encoded)))
+            print("Full encoding: {}\n".format(encoded)) 
+            print("="*line_length)
+        return np.array(encoded)
             

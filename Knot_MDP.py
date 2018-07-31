@@ -12,7 +12,7 @@ import copy
 import ast
 
 load_stuff=False #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc. from a previous training run
-job_name="SliceEnv_try_2" #name used to label files for matplotlib lists, replay_buffer, model weights etc.
+job_name="SliceEnv_try_14" #name used to label files for matplotlib lists, replay_buffer, model weights etc.
 ###############################################################################################
 #Hyperpararameters
 ###############################################################################################
@@ -24,17 +24,13 @@ batch_size=1024
 seed_braids=[[1],
              [1, 1],
              [1, -1, 1],
-             [1, 1, 1],
-             [1, -2, 2, 1, 1],
              [1, -2, 1, -2],
-             [1, -1, 1, -2, 1, -2],
-             [1, 1, 1, 1, 1],
-             [1, 1, 2, -2, 1, 1]] #The braids we want the algorithm to solve. Info stored in seed_frame
+             [1, 1, 1, 1, 1]] #The braids we want the algorithm to solve. Info stored in seed_frame
 
-#Warning: a large start_states_capacity leads to longer run times. With 20,000 capacity, 100,000 
+#Warning: run time scales linearly with start_states_capacity. With 20,000 capacity, 100,000 
 #epochs takes about 1 hour 15 min. With 100,000 capacity, 100,000 epochs takes about 6 hours. 
-#FIXME: look into start_states_capacity implementation for explanation
-start_states_capacity=20000
+#FIXME: look into start_states_capacity implementation for explanation/improvement
+start_states_capacity=100000
 max_braid_index=6
 max_braid_length=10
 
@@ -52,7 +48,7 @@ architectures = {"Hidden": (256, 256, 256),
                  "Advantage": (256, output_size)}
 transfer_rate=2000 #how often (in epochs) to copy weights from online network to target network
 gamma=0.99
-learning_rate=0.00000001
+learning_rate=0.000000001
 
 #Training
 euler_char_reset=-8 #algorithm will initialize state if any eulerchar falls below euler_char_reset
@@ -63,14 +59,15 @@ max_actions_length=40 #initialize_state() is called if an episode takes more act
 #final_epsilon and will not change.
 start_epsilon=1
 final_epsilon=0.1
-num_decrease_epochs=200000
+num_decrease_epochs=5000
 epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
 
 store_rate=100 #how often (in epochs) to store values for matplotlib lists
-report_policy_rate=10000 #how often (in epochs) to report the policies
-num_epochs=400000 #how many epochs to run the algorithm for
+report_policy_rate=1000 #how often (in epochs) to report the policies
+num_epochs=10000 #how many epochs to run the algorithm for
 moves_per_epoch=4
-assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
+if not load_stuff:
+    assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
 
 #construct hyperparameters dict - used to print hyperparameters in .out file
 hyperparameters={"replay_capacity": replay_capacity,
@@ -288,7 +285,7 @@ for i in range(num_epochs):
         for braid in seed_braids:
             actions, score = get_policy(braid, max_braid_index, max_braid_length, sess, max_actions_length)
             print("\tPolicy for braid {}: {}".format(braid, actions))
-            print("Achieved score: {}".format(score))
+            print("\tAchieved Euler characteristic: {}".format(score))
 tock=time.time()
 print("Training took {} seconds".format(tock-tick))
 print("="*line_width)
