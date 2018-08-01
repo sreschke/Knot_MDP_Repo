@@ -102,9 +102,9 @@ class Start_States_Buffer(object):
         assert queue in ["Explore", "Seed"], "queue flag must be either \"Explore\" or \"Seed\""
         #get appropriate data_frame
         if queue=="Explore":
-            encoded_state=random.sample(population=self.explore_queue, k=1)[0]
+            encoded_state=random.sample(population=list(self.explore_queue), k=1)[0]
         else:
-            encoded_state=random.sample(population=self.seed_queue, k=1)[0]
+            encoded_state=random.sample(population=list(self.seed_queue), k=1)[0]
         #print("Encoded state in sample_state: {}".format(encoded_state))
         braid, components, eulerchar, cursor = self.inverse_encode_state(encoded_state=encoded_state)
         slice=SE(braid_word=braid,

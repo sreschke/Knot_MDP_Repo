@@ -55,7 +55,7 @@ class Slice_Environment_Wrapper(Environment):
         action_probabilities[1]-action_probablities[0]. Otherwise, the action is pulled from 
         expanding_moves."""
         if self.uniform:
-            return random.choice(range(14))
+            return random.choice(range(13))
         else:
             for prob in self.action_probabilities:
                 assert prob <= 1 and prob >= 0, "Check action_probabilities"

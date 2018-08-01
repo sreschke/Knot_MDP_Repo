@@ -12,7 +12,7 @@ import copy
 import ast
 
 load_stuff=False #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc. from a previous training run
-job_name="SliceEnv_try_14" #name used to label files for matplotlib lists, replay_buffer, model weights etc.
+job_name="SliceEnv_try_16" #name used to label files for matplotlib lists, replay_buffer, model weights etc.
 ###############################################################################################
 #Hyperpararameters
 ###############################################################################################
@@ -24,12 +24,19 @@ batch_size=1024
 seed_braids=[[1],
              [1, 1],
              [1, -1, 1],
+             [1, -1, 1, -1, 1, -1, 1],
+             [1, -2, 2],
+             [1, 2, -2],
+             [1, 1, 1],
+             [1, -2, 1, 2, 1],
+             [1, -3, 3, 1, 1],
              [1, -2, 1, -2],
-             [1, 1, 1, 1, 1]] #The braids we want the algorithm to solve. Info stored in seed_frame
+             [1, -2, 1, -2, 1, -1],
+             [1, 1, 1, 1, 1],
+             [1, 1, 1, 2, -1, 2],
+             [1, 1, -2, 1, -2, -2],
+             [1, 1, 1, -2, 1, -2]] #The braids we want the algorithm to solve. Info stored in seed_frame
 
-#Warning: run time scales linearly with start_states_capacity. With 20,000 capacity, 100,000 
-#epochs takes about 1 hour 15 min. With 100,000 capacity, 100,000 epochs takes about 6 hours. 
-#FIXME: look into start_states_capacity implementation for explanation/improvement
 start_states_capacity=100000
 max_braid_index=6
 max_braid_length=10
@@ -43,9 +50,10 @@ seed_prob=0.5 #probability of picking from seed_frame when initializing state
 
 #Double Dueling DQN
 output_size=13 #should be the number of actions the agent can take in the MDP
-architectures = {"Hidden": (256, 256, 256),
-                 "Value": (256, 1),
-                 "Advantage": (256, output_size)}
+architectures = {'Hidden': (512, 512, 512),
+                 'Value': (512, 1),
+                 'Advantage': (512, output_size)}
+
 transfer_rate=2000 #how often (in epochs) to copy weights from online network to target network
 gamma=0.99
 learning_rate=0.000000001
@@ -59,11 +67,11 @@ max_actions_length=40 #initialize_state() is called if an episode takes more act
 #final_epsilon and will not change.
 start_epsilon=1
 final_epsilon=0.1
-num_decrease_epochs=200000
+num_decrease_epochs=250000
 epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
 
-store_rate=100 #how often (in epochs) to store values for matplotlib lists
-report_policy_rate=1000 #how often (in epochs) to report the policies
+store_rate=1000 #how often (in epochs) to store values for matplotlib lists
+report_policy_rate=10000 #how often (in epochs) to report the policies
 num_epochs=1000000 #how many epochs to run the algorithm for
 moves_per_epoch=4
 if not load_stuff:
@@ -130,6 +138,7 @@ def print_hyperparameters(hyperparameters):
 ###############################################################################################
 #Disable AVX and AVX2 warnings
 ###############################################################################################
+tick=time.time()
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 ###############################################################################################
@@ -240,6 +249,8 @@ for braid in seed_braids:
 if not load_buffer:
     print("Filling Buffer...")
     dddqn.initialize_replay_buffer(display=False, euler_char_reset=euler_char_reset, max_actions_length=max_actions_length)
+tock=time.time()
+print("Pre-training set-up took {} seconds".format(tock-tick))
 #########################################################################################
 #Training
 #########################################################################################

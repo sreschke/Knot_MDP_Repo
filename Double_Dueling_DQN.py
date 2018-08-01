@@ -131,10 +131,8 @@ class Double_Dueling_DQN():
 
     def train_step(self, current_states, actions, rewards, next_states, terminals, display_loss=False):
         targets=self.get_targets(current_states, actions, rewards, next_states, terminals, session=self.session) #Values
-        #self.online_network.print_weights(self.session)
         self.session.run(self.train_op, feed_dict={self.online_network.X_in: current_states,
                                                    self.online_network.y_in: targets})
-        #self.online_network.print_weights(self.session)
         if display_loss:
             print(self.session.run(self.loss, feed_dict={self.online_network.X_in: current_states,
                                                          self.online_network.y_in: targets}))
@@ -146,7 +144,6 @@ class Double_Dueling_DQN():
         with tf.name_scope("Loss"):
             predictions=self.online_network.forward_values_graph #C graph
             loss = tf.losses.mean_squared_error(labels=self.online_network.y_in, predictions=predictions)
-            train_op=self.optimizer.minimize(loss, global_step=self.global_step)
             return loss
 
     def get_train_operation(self):

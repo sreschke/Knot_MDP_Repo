@@ -17,4 +17,4 @@ class Uniform_Experience_Replay_Buffer(Experience_Replay_Buffer):
 
     def get_batch(self):
         assert len(self.buffer)!= 0, "Buffer is empty"
-        return zip(*random.sample(self.buffer, self.batch_size)) #unpacks tuples
+        return zip(*random.sample(list(self.buffer), self.batch_size)) #unpacks tuples

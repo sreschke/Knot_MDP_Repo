@@ -525,38 +525,38 @@ class SliceEnv():
         print("Is Terminal:\t\t",self.is_Terminal())
     
     # Associating numbers 0 through 13 to the braid word actions defined above.
-    def action(self, actionnumber):
+    def action(self, action_number):
         big_penalty=10
         old_encoding=self.encode_state()
         old_score=self.eulerchar[1]
-        if actionnumber==1:
+        if action_number==1:
             self.move_down()
-        elif actionnumber==2:
+        elif action_number==2:
             self.move_up()
-        elif actionnumber==3:
+        elif action_number==3:
             self.move_left()
-        elif actionnumber==4:
+        elif action_number==4:
             self.move_right()
-        elif actionnumber==5:
+        elif action_number==5:
             self.cut()
-        elif actionnumber==6:
+        elif action_number==6:
             self.r2_add_pos()
-        elif actionnumber==7:
+        elif action_number==7:
             self.r2_add_neg()
-        elif actionnumber==8:
+        elif action_number==8:
             self.r2_rm()
-        elif actionnumber==9:
+        elif action_number==9:
             self.r3()
-        elif actionnumber==10:
+        elif action_number==10:
             self.far_comm()
-        elif actionnumber==11:
+        elif action_number==11:
             self.add_crossing_pos()
-        elif actionnumber==12:
+        elif action_number==12:
             self.add_crossing_neg()
-        elif actionnumber==0:
+        elif action_number==0:
             self.rm_crossing()
         else:
-            assert True==False, 'Error in action()'
+            assert True==False, "Invalid action passed: {}".format(action_number)
         for component in self.components:
             assert component > 0, "Error"
         encoding=self.encode_state()
