@@ -7,7 +7,7 @@ import random
 import sum_tree
 
 
-class Experience(object):
+class Prioritized_Experience_Replay_Buffer(object):
     """ The class represents prioritized experience replay buffer.
     The class has functions: store samples, pick samples with 
     probability in proportion to sample's priority, update 

@@ -1,2 +1,0 @@
-model_checkpoint_path: "SliceEnv_model.ckpt"
-all_model_checkpoint_paths: "SliceEnv_model.ckpt"

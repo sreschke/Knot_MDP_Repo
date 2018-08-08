@@ -81,7 +81,7 @@ class Double_Dueling_DQN():
         #Computation Graphs
         self.loss=self.get_loss()
         self.train_op=self.get_train_operation() #operation that updates the weights in the online network
-
+        self.TD_error=self.get_TD_error()
 
     def initialize_replay_buffer(self, display=False, policy=None, euler_char_reset=-10, max_actions_length=20):
         """Fills replay buffer to it's capacity by collecting (s, a, r, s', t) tuples. Actions are 
@@ -129,10 +129,11 @@ class Double_Dueling_DQN():
         return int(self.session.run(self.online_network.forward_action_graph, 
                                     feed_dict={self.online_network.X_in: np.reshape(state, (1, self.online_network.input_size))}))
 
-    def train_step(self, current_states, actions, rewards, next_states, terminals, display_loss=False):
+    def train_step(self, current_states, actions, rewards, next_states, terminals, weights, display_loss=False):
         targets=self.get_targets(current_states, actions, rewards, next_states, terminals, session=self.session) #Values
         self.session.run(self.train_op, feed_dict={self.online_network.X_in: current_states,
-                                                   self.online_network.y_in: targets})
+                                                   self.online_network.y_in: targets,
+                                                   weights: weights})
         if display_loss:
             print(self.session.run(self.loss, feed_dict={self.online_network.X_in: current_states,
                                                          self.online_network.y_in: targets}))
@@ -140,11 +141,23 @@ class Double_Dueling_DQN():
    
     def get_loss(self):
         #Calculates the MSE loss between the online network predictions and the targets.
+        #This version is using Importance Sampling
         #Returns the computation graph for the loss.
         with tf.name_scope("Loss"):
-            predictions=self.online_network.forward_values_graph #C graph
-            loss = tf.losses.mean_squared_error(labels=self.online_network.y_in, predictions=predictions)
+            #predictions=self.online_network.forward_values_graph #C graph
+            #loss=tf.losses.mean_squared_error(labels=self.online_network.y_in, predictions=predictions)
+            TD_error=self.TD_error
+            weights=tf.placeholder(dtype=tf.float32, shape=(None, self.online_network.output_size), name="error_weights")
+            weighted_error=tf.multiply(TD_error, weights)
+            loss=tf.reduced_mean(tf.square(weighted_error))
             return loss
+
+    def get_TD_error(self):
+        #Creates the computation graph for the TD_error
+        with tf.name_scope("TD_Error"):
+            predictions=self.online_network.forward_values_graph #C graph
+            TD_error=tf.subtract(x=predictions, y=self.online_network.y_in)
+            return TD_error
 
     def get_train_operation(self):
         return self.optimizer.minimize(self.loss, global_step=self.global_step)

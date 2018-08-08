@@ -21,10 +21,10 @@ if __name__ == "__main__":
         print("Manually setting hyperparameters...")
         load_stuff=False #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc. from a previous training run
         #name files for matplotlib lists, replay_buffer, model weights etc.
-        load_job_name="SliceEnv_try_19" #name used to load files from previous job
-        save_job_name="SliceEnv_try_19.2" #name used to save files
+        load_job_name="SliceEnv_try_29" #name used to load files from previous job
+        save_job_name="SliceEnv_try_29.1" #name used to save files
         #Replay buffer
-        replay_capacity=200000 #needs to be large enough to hold a representative sample of the state space
+        replay_capacity=100000 #needs to be large enough to hold a representative sample of the state space
         batch_size=1024
 
         #Start States Buffer
@@ -38,8 +38,8 @@ if __name__ == "__main__":
         max_braid_length=10
 
         #Slice Environment Wrapper (Environment)
-        uniform=False #when picking a random action, actions are sampled uniformly if uniform=True. Otherwise, actions are selected using distribution defined with action_probabilites
-        move_penalty=0.1 #penalty incurred for taking any action
+        uniform=True #when picking a random action, actions are sampled uniformly if uniform=True. Otherwise, actions are selected using distribution defined with action_probabilites
+        move_penalty=0.09 #penalty incurred for taking any action
         seed_prob=0.5 #probability of picking from seed_frame when initializing state
 
 
@@ -49,7 +49,7 @@ if __name__ == "__main__":
 
         transfer_rate=2000 #how often (in epochs) to copy weights from online network to target network
         gamma=0.99
-        learning_rate=0.0000000003
+        learning_rate=0.000000001
 
         #Training
         euler_char_reset=-8 #algorithm will initialize state if any eulerchar falls below euler_char_reset
@@ -63,9 +63,9 @@ if __name__ == "__main__":
         num_decrease_epochs=250000
         epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
 
-        store_rate=100 #how often (in epochs) to store values for matplotlib lists
+        store_rate=10000 #how often (in epochs) to store values for matplotlib lists
         report_policy_rate=1000 #how often (in epochs) to report the policies
-        num_epochs=1000000 #how many epochs to run the algorithm for
+        num_epochs=2000000 #how many epochs to run the algorithm for
         moves_per_epoch=4
         if not load_stuff:
             assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
