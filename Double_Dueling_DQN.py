@@ -222,3 +222,7 @@ class Double_Dueling_DQN():
         print("="*line_width)
         self.target_network.print_weights(self.session)
         return
+
+    def calculate_priority(self):
+
+        pass

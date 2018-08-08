@@ -15,7 +15,7 @@ class Prioritized_Experience_Replay_Buffer(object):
     see https://arxiv.org/pdf/1511.05952.pdf .
     """
     
-    def __init__(self, memory_size, batch_size, alpha):
+    def __init__(self, memory_size, batch_size, alpha, epsilon):
         """ Prioritized experience replay buffer initialization.
         
         Parameters
@@ -32,6 +32,7 @@ class Prioritized_Experience_Replay_Buffer(object):
         self.memory_size = memory_size
         self.batch_size = batch_size
         self.alpha = alpha
+        self.epsilon = epsilon
 
     def add(self, data, priority):
         """ Add new sample.
@@ -45,7 +46,7 @@ class Prioritized_Experience_Replay_Buffer(object):
         """
         self.tree.add(data, priority**self.alpha)
 
-    def sample(self, beta):
+    def get_batch(self, beta):
         """ The method return samples randomly.
         
         Parameters

@@ -1,5 +1,5 @@
 from Double_Dueling_DQN import Double_Dueling_DQN as DDDQN
-from Uniform_Experience_Replay_Buffer import Uniform_Experience_Replay_Buffer as UERB
+from Prioritized_Experience_Replay_Buffer import Prioritized_Experience_Replay_Buffer as PERB
 from Slice_Environment_Wrapper import Slice_Environment_Wrapper as SEW
 from Start_States_Buffer2 import Start_States_Buffer as SSB
 from SliceEnvironment import SliceEnv as SE
@@ -26,7 +26,9 @@ if __name__ == "__main__":
         #Replay buffer
         replay_capacity=100000 #needs to be large enough to hold a representative sample of the state space
         batch_size=1024
-
+        alpha=0.6 #see section B.2.2 (pg. 14 table 3) in paper: https://arxiv.org/pdf/1511.05952.pdf
+        replay_epslion=0.01 #introduced on page 4 in paper: https://arxiv.org/pdf/1511.05952.pdf
+        
         #Start States Buffer
         seed_braids=seed_braids=[[1, 1, 1],
                                  [1, 1, 1, 2, -1, 2], 
@@ -111,6 +113,8 @@ if __name__ == "__main__":
     #construct hyperparameters dict - used to print hyperparameters in .out file
     hyperparameters={"replay_capacity": replay_capacity,
                      "batch_size": batch_size,
+                     "alpha": alpha,
+                     "replay_epsilon": replay_epslion,
                      "seed_braids": seed_braids,
                      "start_states_capacity": start_states_capacity,
                      "max_braid_index": max_braid_index,
@@ -188,15 +192,11 @@ if __name__ == "__main__":
     print("Pre-Training")
     print("="*line_width)
     print("Instantiating Replay Buffer...")
-    replay_buffer=UERB(capacity=replay_capacity, batch_size=batch_size)
+    replay_buffer=PERB(memory_size=replay_capacity, batch_size=batch_size)
     load_buffer=load_stuff
     load_buffer_file_name=load_job_name+'_replay_buffer'
     if load_buffer:
-        print("Loading replay buffer...")    
-        infile=open(load_buffer_file_name,'rb')
-        loaded_deque=pickle.load(infile)
-        infile.close()
-        replay_buffer.buffer=loaded_deque
+        assert True==False, "loading replay buffer has not been implemented"
     ###############################################################################################
     #Instantiate Start States Buffer
     ###############################################################################################    
