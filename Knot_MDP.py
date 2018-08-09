@@ -25,9 +25,11 @@ if __name__ == "__main__":
         save_job_name="SliceEnv_try_29.1" #name used to save files
         #Replay buffer
         replay_capacity=1000 #needs to be large enough to hold a representative sample of the state space
-        batch_size=1024
+        batch_size=512
         alpha=0.6 #see section B.2.2 (pg. 14 table 3) in paper: https://arxiv.org/pdf/1511.05952.pdf
         replay_epslion=0.01 #introduced on page 4 in paper: https://arxiv.org/pdf/1511.05952.pdf
+        #FIXME: figure out how beta needs to anneal
+        beta=0.5 #see page 5 of paper: https://arxiv.org/pdf/1511.05952.pdf
         
         #Start States Buffer
         seed_braids=seed_braids=[[1, 1, 1],
@@ -304,14 +306,16 @@ if __name__ == "__main__":
             action=dddqn.epsilon_greedy_action(state)
             actions_list.append(action)
             reward, next_state, terminal = dddqn.Environment.take_action(action)
-            #FIXME get priority and pass it to replay_buffer.add
-            dddqn.replay_buffer.add((state, action, reward, next_state, terminal))
+            #FIXME not properly getting priority
+            priority=dddqn.calculate_priorities([state], [action], [reward], [next_state], [terminal])[0]
+            dddqn.replay_buffer.add(data=(state, action, reward, next_state, terminal), priority=priority)
             if terminal or dddqn.check_eulerchars(euler_char_reset) or len(actions_list) > max_actions_length:
                 state=dddqn.Environment.initialize_state()
                 actions_list=[]
             else:
                 state=next_state
-        transitions, weights, indices = dddqn.replay_buffer.get_batch()
+        transitions, weights, indices = dddqn.replay_buffer.get_batch(beta)
+        #FIXME figure out how we need anneal beta
         states, actions, rewards, next_states, terminals = zip(*transitions) #unzip transitions as tuples
         priorities=dddqn.calculate_priorities(states, actions, rewards, next_states, terminals)
         dddqn.replay_buffer.priority_update(indices, priorities)

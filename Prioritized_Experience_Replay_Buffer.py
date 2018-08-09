@@ -4,7 +4,7 @@
 #########################################################################################
 import numpy
 import random
-import sum_tree
+from Sum_Tree import SumTree
 
 
 class Prioritized_Experience_Replay_Buffer(object):
@@ -28,7 +28,7 @@ class Prioritized_Experience_Replay_Buffer(object):
             exponent determine how much prioritization.
             Prob_i \sim priority_i**alpha/sum(priority**alpha)
         """
-        self.tree = sum_tree.SumTree(memory_size)
+        self.tree = SumTree(memory_size)
         self.memory_size = memory_size
         self.batch_size = batch_size
         self.alpha = alpha

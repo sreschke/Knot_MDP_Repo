@@ -98,7 +98,8 @@ class Double_Dueling_DQN():
             actions_list.append(action)
             reward, next_state, terminal=self.Environment.take_action(action)
             priority=abs(reward)
-            self.replay_buffer.add((state, action, reward, next_state, terminal), priority)
+            self.replay_buffer.add(data=(state, action, reward, next_state, terminal),
+                                   priority=priority)
             if terminal or self.check_eulerchars(euler_char_reset) or len(actions_list) > max_actions_length:
                 state=self.Environment.initialize_state()
                 actions_list=[]
@@ -225,8 +226,8 @@ class Double_Dueling_DQN():
         return
 
     def calculate_priorities(self, states, actions, rewards, next_states, terminals):
-        TD_error=self.sess.run(tf.abs(self.TD_error),
-                               feed_dict={self.online_network.X_in: np.reshape(state, (1, self.online_network.input_size)),
+        TD_error=self.session.run(tf.abs(self.TD_error),
+                               feed_dict={self.online_network.X_in: states,
                                           self.online_network.y_in: self.get_targets(states, actions, rewards, next_states, terminals, self.session)})
-        priorities=TD_error+self.replay_buffer.epsilon
+        priorities=TD_error[range(len(TD_error)), actions]+self.replay_buffer.epsilon
         return priorities
