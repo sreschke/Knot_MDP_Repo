@@ -79,10 +79,10 @@ class Double_Dueling_DQN():
         self.session=session
 
         #Computation Graphs
+        self.TD_error=self.get_TD_error()
         self.loss=self.get_loss()
         self.train_op=self.get_train_operation() #operation that updates the weights in the online network
-        self.TD_error=self.get_TD_error()
-
+        
     def initialize_replay_buffer(self, display=False, policy=None, euler_char_reset=-10, max_actions_length=20):
         """Fills replay buffer to it's capacity by collecting (s, a, r, s', t) tuples. Actions are 
         picked randomly until the buffer reaches its capacity."""        
@@ -90,14 +90,15 @@ class Double_Dueling_DQN():
         if display:
             print("Filling replay buffer...")
         actions_list=[]
-        while len(self.replay_buffer.buffer) < self.replay_buffer.capacity:
+        while self.replay_buffer.tree.filled_size() < self.replay_buffer.memory_size:
             if policy is not None:
                 action=self.Environment.action_from_policy(policy=policy)
             else:
                 action=self.Environment.random_action()
             actions_list.append(action)
             reward, next_state, terminal=self.Environment.take_action(action)
-            self.replay_buffer.add((state, action, reward, next_state, terminal))
+            priority=abs(reward)
+            self.replay_buffer.add((state, action, reward, next_state, terminal), priority)
             if terminal or self.check_eulerchars(euler_char_reset) or len(actions_list) > max_actions_length:
                 state=self.Environment.initialize_state()
                 actions_list=[]
@@ -149,7 +150,7 @@ class Double_Dueling_DQN():
             TD_error=self.TD_error
             weights=tf.placeholder(dtype=tf.float32, shape=(None, self.online_network.output_size), name="error_weights")
             weighted_error=tf.multiply(TD_error, weights)
-            loss=tf.reduced_mean(tf.square(weighted_error))
+            loss=tf.reduce_mean(tf.square(weighted_error))
             return loss
 
     def get_TD_error(self):
@@ -223,6 +224,9 @@ class Double_Dueling_DQN():
         self.target_network.print_weights(self.session)
         return
 
-    def calculate_priority(self):
-
-        pass
+    def calculate_priorities(self, states, actions, rewards, next_states, terminals):
+        TD_error=self.sess.run(tf.abs(self.TD_error),
+                               feed_dict={self.online_network.X_in: np.reshape(state, (1, self.online_network.input_size)),
+                                          self.online_network.y_in: self.get_targets(states, actions, rewards, next_states, terminals, self.session)})
+        priorities=TD_error+self.replay_buffer.epsilon
+        return priorities

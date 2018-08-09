@@ -24,7 +24,7 @@ if __name__ == "__main__":
         load_job_name="SliceEnv_try_29" #name used to load files from previous job
         save_job_name="SliceEnv_try_29.1" #name used to save files
         #Replay buffer
-        replay_capacity=100000 #needs to be large enough to hold a representative sample of the state space
+        replay_capacity=1000 #needs to be large enough to hold a representative sample of the state space
         batch_size=1024
         alpha=0.6 #see section B.2.2 (pg. 14 table 3) in paper: https://arxiv.org/pdf/1511.05952.pdf
         replay_epslion=0.01 #introduced on page 4 in paper: https://arxiv.org/pdf/1511.05952.pdf
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     print("Pre-Training")
     print("="*line_width)
     print("Instantiating Replay Buffer...")
-    replay_buffer=PERB(memory_size=replay_capacity, batch_size=batch_size)
+    replay_buffer=PERB(memory_size=replay_capacity, batch_size=batch_size, alpha=alpha, epsilon=replay_epslion)
     load_buffer=load_stuff
     load_buffer_file_name=load_job_name+'_replay_buffer'
     if load_buffer:
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     ###############################################################################################
     #Instantiate Start States Buffer
     ###############################################################################################    
-    load_start_states_file_name=load_job_name+"_start_states_dataframe"
+    load_start_states_file_name=load_job_name+"_start_states"
     starts_buffer=SSB(capacity=start_states_capacity,
                       max_braid_index=max_braid_index,
                       max_braid_length=max_braid_length,
@@ -304,14 +304,18 @@ if __name__ == "__main__":
             action=dddqn.epsilon_greedy_action(state)
             actions_list.append(action)
             reward, next_state, terminal = dddqn.Environment.take_action(action)
+            #FIXME get priority and pass it to replay_buffer.add
             dddqn.replay_buffer.add((state, action, reward, next_state, terminal))
             if terminal or dddqn.check_eulerchars(euler_char_reset) or len(actions_list) > max_actions_length:
                 state=dddqn.Environment.initialize_state()
                 actions_list=[]
             else:
                 state=next_state
-        states, actions, rewards, next_states, terminals=dddqn.replay_buffer.get_batch()
-        dddqn.train_step(states, actions, rewards, next_states, terminals)
+        transitions, weights, indices = dddqn.replay_buffer.get_batch()
+        states, actions, rewards, next_states, terminals = zip(*transitions) #unzip transitions as tuples
+        priorities=dddqn.calculate_priorities(states, actions, rewards, next_states, terminals)
+        dddqn.replay_buffer.priority_update(indices, priorities)
+        dddqn.train_step(states, actions, rewards, next_states, terminals, weights)
         if i % store_rate==0:
             loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
                                                                dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session)})

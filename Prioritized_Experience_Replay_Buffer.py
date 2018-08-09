@@ -12,7 +12,7 @@ class Prioritized_Experience_Replay_Buffer(object):
     The class has functions: store samples, pick samples with 
     probability in proportion to sample's priority, update 
     each sample's priority, reset alpha.
-    see https://arxiv.org/pdf/1511.05952.pdf .
+    see https://arxiv.org/pdf/1511.05952.pdf
     """
     
     def __init__(self, memory_size, batch_size, alpha, epsilon):
@@ -63,9 +63,10 @@ class Prioritized_Experience_Replay_Buffer(object):
             list of sample indices
             The indices indicate sample positions in a sum tree.
         """
+        assert self.tree.filled_size() >= self.batch_size, "Trying to get a sample of size {} from buffer of length {}".format(self.batch_size, self.tree.filled_size())
         
-        if self.tree.filled_size() < self.batch_size:
-            return None, None, None
+        #if self.tree.filled_size() < self.batch_size:
+        #    return None, None, None
 
         out = []
         indices = []
@@ -83,7 +84,7 @@ class Prioritized_Experience_Replay_Buffer(object):
         
         self.priority_update(indices, priorities) # Revert priorities
 
-        #FIXME we should divide by max weights in buffer not max weights in sample
+        #FIXME we should divide by max weight in buffer not max weight in sample
         weights = [ i/max(weights) for i in weights] # Normalize for stability
         
         return out, weights, indices
