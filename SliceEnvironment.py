@@ -81,7 +81,20 @@ class SliceEnv():
                          9: "r3",
                          10: "Far comm",
                          11: "Add Positive crossing",
-                         12: "Add Negative crossing"}                  
+                         12: "Add Negative crossing"}
+        self.inverse_action_map={"Remove Crosing": 0,
+                                 "Move Down": 1,
+                                 "Move Up": 2,
+                                 "Move Left": 3,
+                                 "Move Right": 4,
+                                 "Cut": 5,
+                                 "Add Positive r2": 6,
+                                 "Add Negative r2": 7,
+                                 "Remove r2": 8,
+                                 "r3": 9,
+                                 "Far comm": 10,
+                                 "Add Positive crossing": 11,
+                                 "Add Negative crossing": 12}
                     
     
     #def get_state_tuple(self):
@@ -526,6 +539,8 @@ class SliceEnv():
     
     # Associating numbers 0 through 13 to the braid word actions defined above.
     def action(self, action_number):
+        """Associating numbers 0 through 13 to the braid word actions defined above.
+        This is also where the reward function is defined"""
         big_penalty=10
         old_encoding=self.encode_state()
         old_score=self.eulerchar[1]
@@ -633,16 +648,20 @@ class SliceEnv():
             print(" ", end="")
         print("| "*self.index)
     
-    def print_action_sequence(self, action_list):
+    def print_action_sequence(self, action_list, gamma=0.99):
         self.info()
         self.print_braid()
+        reward_seq=[]
         for action in action_list:
+            reward, _, _ = self.action(action)
+            reward_seq.append(reward)
             print("="*60)
             print("Action {}: {}".format(action, self.action_map[action]))
+            print("Reward: {}".format(reward))
             print("="*60)
-            self.action(action)
             self.info()
             self.print_braid()
+        
             
     def old_encode_state(self, zero=0, one=1, display=False):
         """Outdated encode_state() function. The extensive use of np.contatentate() was too slow

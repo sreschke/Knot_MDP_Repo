@@ -303,13 +303,16 @@ if __name__ == "__main__":
     actions_list=[]
     for i in range(num_epochs):
         for j in range(moves_per_epoch):
-            action=dddqn.epsilon_greedy_action(state)
+            if len(actions_list)<max_actions_length:
+                action=dddqn.epsilon_greedy_action(state)
+            else:
+                action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"] #policy after max_actions_length actions is to remove all crossings
             actions_list.append(action)
             reward, next_state, terminal = dddqn.Environment.take_action(action)
             #FIXME not properly getting priority
             priority=dddqn.calculate_priorities([state], [action], [reward], [next_state], [terminal])[0]
             dddqn.replay_buffer.add(data=(state, action, reward, next_state, terminal), priority=priority)
-            if terminal or dddqn.check_eulerchars(euler_char_reset) or len(actions_list) > max_actions_length:
+            if terminal or dddqn.check_eulerchars(euler_char_reset):
                 state=dddqn.Environment.initialize_state()
                 actions_list=[]
             else:

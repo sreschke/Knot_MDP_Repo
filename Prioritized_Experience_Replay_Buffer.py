@@ -1,6 +1,7 @@
 #########################################################################################
 #Implementation pulled from https://github.com/takoika/PrioritizedExperienceReplay
 #Research Paper: https://arxiv.org/pdf/1511.05952.pdf
+#The orinal implementation doesn't properly normalize the weights
 #########################################################################################
 import numpy
 import random
