@@ -81,7 +81,20 @@ class SliceEnv():
                          9: "r3",
                          10: "Far comm",
                          11: "Add Positive crossing",
-                         12: "Add Negative crossing"}                  
+                         12: "Add Negative crossing"}
+        self.inverse_action_map={"Remove Crosing": 0,
+                                 "Move Down": 1,
+                                 "Move Up": 2,
+                                 "Move Left": 3,
+                                 "Move Right": 4,
+                                 "Cut": 5,
+                                 "Add Positive r2": 6,
+                                 "Add Negative r2": 7,
+                                 "Remove r2": 8,
+                                 "r3": 9,
+                                 "Far comm": 10,
+                                 "Add Positive crossing": 11,
+                                 "Add Negative crossing": 12}
                     
     
     #def get_state_tuple(self):
@@ -526,8 +539,8 @@ class SliceEnv():
     
     # Associating numbers 0 through 13 to the braid word actions defined above.
     def action(self, action_number):
-        big_penalty=10
-        old_encoding=self.encode_state()
+        """Associating numbers 0 through 13 to the braid word actions defined above.
+        This is also where the reward function for the MDP is implemented"""
         old_score=self.eulerchar[1]
         if action_number==1:
             self.move_down()
@@ -560,15 +573,10 @@ class SliceEnv():
         for component in self.components:
             assert component > 0, "Error"
         encoding=self.encode_state()
-        if (old_encoding==encoding).all():
-            reward=-big_penalty
-        else:
-            reward=-self.inaction_penalty+self.eulerchar[1]-old_score
+        reward=-self.inaction_penalty+self.eulerchar[1]-old_score
         terminal=self.is_Terminal()
         for component in self.components:
             assert component in self.eulerchar.keys(), "Components and Eulerchar have become misaligned. Components: {} Eulerchar: {}".format(self.components, self.eulerchar)
-        #update state_tuple
-        #self.state_tuple=self.get_state_tuple()
         return reward, encoding, int(terminal)    
 
     # One-hot encodes the cursor position and the braid word.  
@@ -633,16 +641,20 @@ class SliceEnv():
             print(" ", end="")
         print("| "*self.index)
     
-    def print_action_sequence(self, action_list):
+    def print_action_sequence(self, action_list, gamma=0.99):
         self.info()
         self.print_braid()
+        reward_seq=[]
         for action in action_list:
+            reward, _, _ = self.action(action)
+            reward_seq.append(reward)
             print("="*60)
             print("Action {}: {}".format(action, self.action_map[action]))
+            print("Reward: {}".format(reward))
             print("="*60)
-            self.action(action)
             self.info()
             self.print_braid()
+        
             
     def old_encode_state(self, zero=0, one=1, display=False):
         """Outdated encode_state() function. The extensive use of np.contatentate() was too slow

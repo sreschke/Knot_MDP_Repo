@@ -9,62 +9,106 @@ import numpy as np
 import pandas as pd
 import time
 import copy
-import ast
+import sys
+import os.path
+
 
 if __name__ == "__main__":
-    load_stuff=True #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc. from a previous training run
-    #name files for matplotlib lists, replay_buffer, model weights etc.
-    load_job_name="SliceEnv_try_19" #name used to load files from previous job
-    save_job_name="SliceEnv_try_19.2" #name used to save files
     ###############################################################################################
     #Hyperpararameters
     ###############################################################################################
-    #Replay buffer
-    replay_capacity=200000 #needs to be large enough to hold a representative sample of the state space
-    batch_size=1024
+    if len(sys.argv)==1: #if no command line arguments are passed, manually define hyperparameters
+        print("Manually setting hyperparameters...")
+        load_stuff=True #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc. from a previous training run
+        #name files for matplotlib lists, replay_buffer, model weights etc.
+        load_job_name="SliceEnv_try_19" #name used to load files from previous job
+        save_job_name="SliceEnv_try_19.2" #name used to save files
+    
+        #Replay buffer
+        replay_capacity=200000 #needs to be large enough to hold a representative sample of the state space
+        batch_size=1024
 
-    #Start States Buffer
-    seed_braids=seed_braids=[[1, 1, 1, 2, -1, 2], 
-                             [1, 1, -2, 1, -2, -2], 
-                             [1, 1, 1, -2, 1, -2]] #The braids we want the algorithm to solve. Info stored in seed_frame
+        #Start States Buffer
+        seed_braids=seed_braids=[[1, 1, 1, 2, -1, 2], 
+                                 [1, 1, -2, 1, -2, -2], 
+                                 [1, 1, 1, -2, 1, -2]] #The braids we want the algorithm to solve. Info stored in seed_queue
 
-    start_states_capacity=100000
-    max_braid_index=6
-    max_braid_length=10
+        start_states_capacity=100000
+        max_braid_index=6
+        max_braid_length=10
 
-    #Slice Environment Wrapper (Environment)
-    uniform=False #when picking a random action, actions are sampled uniformly if uniform=True. Otherwise, actions are selected using distribution defined with action_probabilites
-    action_probabilities=[0.3, 0.5] #see doc string for random_action() in Slice_Environment_Wrapper
-    move_penalty=0.1 #penalty incurred for taking any action
-    seed_prob=0.5 #probability of picking from seed_frame when initializing state
+        #Slice Environment Wrapper (Environment)
+        uniform=False #when picking a random action, actions are sampled uniformly if uniform=True. Otherwise, actions are selected using distribution defined with action_probabilites
+        move_penalty=0.1 #penalty incurred for taking any action
+        seed_prob=0.5 #probability of picking from seed_frame when initializing state
 
+        #Double Dueling DQN
+        output_size=13 #should be the number of actions the agent can take in the MDP
+        architectures={'Hidden': (512, 512, 512), 'Value': (512, 1), 'Advantage': (512, 13)}
 
-    #Double Dueling DQN
-    output_size=13 #should be the number of actions the agent can take in the MDP
-    architectures={'Hidden': (512, 512, 512), 'Value': (512, 1), 'Advantage': (512, 13)}
+        transfer_rate=2000 #how often (in epochs) to copy weights from online network to target network
+        gamma=0.99
+        learning_rate=0.0000000003
 
-    transfer_rate=2000 #how often (in epochs) to copy weights from online network to target network
-    gamma=0.99
-    learning_rate=0.0000000003
+        #Training
+        euler_char_reset=-8 #algorithm will initialize state if any eulerchar falls below euler_char_reset
+        max_actions_length=40 #initialize_state() is called if an episode takes more actions than max_actions_length
 
-    #Training
-    euler_char_reset=-8 #algorithm will initialize state if any eulerchar falls below euler_char_reset
-    max_actions_length=40 #initialize_state() is called if an episode takes more actions than max_actions_length
+        #epsilon parameters to linearly decrease epsilon from start_epsilon to final_epsilon over
+        #num_decrease_epochs. If a model is loaded (i.e. load_stuff=True), epsilon wil be the
+        #final_epsilon and will not change.
+        start_epsilon=1
+        final_epsilon=0.1
+        num_decrease_epochs=250000
+        epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
 
-    #epsilon parameters to linearly decrease epsilon from start_epsilon to final_epsilon over
-    #num_decrease_epochs. If a model is loaded (i.e. load_stuff=True), epsilon wil be the
-    #final_epsilon and will not change.
-    start_epsilon=1
-    final_epsilon=0.1
-    num_decrease_epochs=250000
-    epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
-
-    store_rate=100 #how often (in epochs) to store values for matplotlib lists
-    report_policy_rate=1000 #how often (in epochs) to report the policies
-    num_epochs=1000000 #how many epochs to run the algorithm for
-    moves_per_epoch=4
-    if not load_stuff:
-        assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
+        store_rate=100 #how often (in epochs) to store values for matplotlib lists
+        report_policy_rate=1000 #how often (in epochs) to report the policies
+        num_epochs=1000000 #how many epochs to run the algorithm for
+        moves_per_epoch=4
+        if not load_stuff:
+            assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
+    
+    elif len(sys.argv)==2: #if a row number is passed as a commandline argument, load hyperparameters from a dataframe
+        assert sys.argv[1].isdigit(), "Got a non-integer command line argument. Got {} which is a {}".format(sys.argv[1], type(sys.argv[1]))
+        hyperparameter_file_name="hyperparameter_df"
+        assert os.path.exists(hyperparameter_file_name), "The file {} does not exist".format(hyperparameter_file_name)
+        row_index=int(sys.argv[1])
+        print("Loading hyperparameters from file {} using row_index {}...".format(hyperparameter_file_name, row_index))
+        df=pd.read_msgpack(hyperparameter_file_name)
+        df=df.iloc[row_index]
+        load_stuff=df.loc["load_stuff"]
+        load_job_name=df.loc["load_job_name"]
+        save_job_name=df.loc["save_job_name"]
+        replay_capacity=int(df.loc["replay_capacity"])
+        batch_size=int(df.loc["batch_size"])
+        seed_braids=seed_braids=[list(x) for x in df.loc["seed_braids"]]
+        start_states_capacity=int(df.loc["start_states_capacity"])
+        max_braid_index=int(df.loc["max_braid_index"])
+        max_braid_length=int(df.loc["max_braid_length"])
+        uniform=bool(df.loc["uniform"])
+        move_penalty=df.loc["move_penalty"]
+        seed_prob=df.loc["seed_prob"]
+        output_size=int(df.loc["output_size"])
+        architectures=df.loc["architextures"]
+        transfer_rate=int(df.loc["transfer_rate"])
+        gamma=df.loc["gamma"]
+        learning_rate=df.loc["learning_rate"]
+        euler_char_reset=int(df.loc["euler_char_reset"])
+        max_actions_length=int(df.loc["max_actions_length"])
+        start_epsilon=df.loc["start_epsilon"]
+        final_epsilon=df.loc["final_epsilon"]
+        num_decrease_epochs=int(df.loc["num_decrease_epochs"])
+        epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
+        store_rate=int(df.loc["store_rate"])
+        report_policy_rate=int(df.loc["report_policy_rate"])
+        num_epochs=int(df.loc["num_epochs"])
+        moves_per_epoch=int(df.loc["moves_per_epoch"])
+        if not load_stuff:
+            assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
+    
+    else:
+        assert True==False, "Too many command line arguments passed to Knot_MDP.py"
 
     #construct hyperparameters dict - used to print hyperparameters in .out file
     hyperparameters={"replay_capacity": replay_capacity,
@@ -74,7 +118,6 @@ if __name__ == "__main__":
                      "max_braid_index": max_braid_index,
                      "max_braid_length": max_braid_length,
                      "uniform": uniform,
-                     "action_probabilities": action_probabilities,
                      "move_penalty": move_penalty,
                      "seed_prob": seed_prob,
                      "output_size": output_size,
@@ -100,16 +143,20 @@ if __name__ == "__main__":
         an action list and the achieved score"""
         actions=[]
         slice=SE(braid, max_braid_index, max_braid_length)
-        while not slice.is_Terminal() and len(actions)<=max_actions_length:
-            action=sess.run(dddqn.online_network.forward_action_graph,
-                            feed_dict={dddqn.online_network.X_in: np.reshape(slice.encode_state(), (1, dddqn.online_network.input_size))})[0]
+        while not slice.is_Terminal():
+            if len(actions) < max_actions_length:
+                action=sess.run(dddqn.online_network.forward_action_graph,
+                                feed_dict={dddqn.online_network.X_in: np.reshape(slice.encode_state(), (1, dddqn.online_network.input_size))})[0]
+            else:
+                action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"]
             slice.action(action)
             actions.append(action)
         return actions, slice.eulerchar[1]
 
-    def str_to_array(string):
-        """converts a string representation of an array to an array. Called in load_start_states_buffer() function"""
-        return np.array(ast.literal_eval(string.replace(",", "").replace("[ ", "[").replace("  ", " ").replace(" ", ",")))  
+    #Old functions used to load dataframes
+    #def str_to_array(string):
+    #    """converts a string representation of an array to an array. Called in load_start_states_buffer() function"""
+    #    return np.array(ast.literal_eval(string.replace(",", "").replace("[ ", "[").replace("  ", " ").replace(" ", ",")))  
 
     #def load_start_states_buffer(file_name):
     #    """loads the start_states_buffer in file_name and reformats the data. Returns a dataframe"""
@@ -135,7 +182,8 @@ if __name__ == "__main__":
     ###############################################################################################
     line_width=100
     print("Starting " + save_job_name + "...")
-    print("Will load files from " + load_job_name)
+    if load_stuff:
+        print("Will load files from " + load_job_name)
     print_hyperparameters(hyperparameters)
     ###############################################################################################
     #Instantiate Replay Buffer
@@ -156,7 +204,7 @@ if __name__ == "__main__":
     ###############################################################################################
     #Instantiate Start States Buffer
     ###############################################################################################    
-    load_start_states_file_name=load_job_name+"_start_states_dataframe"
+    load_start_states_file_name=load_job_name+"_start_states"
     starts_buffer=SSB(capacity=start_states_capacity,
                       max_braid_index=max_braid_index,
                       max_braid_length=max_braid_length,
@@ -177,7 +225,6 @@ if __name__ == "__main__":
                     max_braid_length=max_braid_length,
                     inaction_penalty=move_penalty,
                     start_states_buffer=starts_buffer,
-                    action_probabilities=action_probabilities,
                     seed_prob=seed_prob,
                     uniform=uniform)
     ###############################################################################################
@@ -258,11 +305,14 @@ if __name__ == "__main__":
     actions_list=[]
     for i in range(num_epochs):
         for j in range(moves_per_epoch):
-            action=dddqn.epsilon_greedy_action(state)
+            if len(actions_list)<max_actions_length:
+                action=dddqn.epsilon_greedy_action(state)
+            else:
+                action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"] #policy after max_actions_length actions is to remove all crossings
             actions_list.append(action)
             reward, next_state, terminal = dddqn.Environment.take_action(action)
             dddqn.replay_buffer.add((state, action, reward, next_state, terminal))
-            if terminal or dddqn.check_eulerchars(euler_char_reset) or len(actions_list) > max_actions_length:
+            if terminal or dddqn.check_eulerchars(euler_char_reset):
                 state=dddqn.Environment.initialize_state()
                 actions_list=[]
             else:
@@ -270,7 +320,7 @@ if __name__ == "__main__":
         states, actions, rewards, next_states, terminals=dddqn.replay_buffer.get_batch()
         dddqn.train_step(states, actions, rewards, next_states, terminals)
         if i % store_rate==0:
-            loss=loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
+            loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
                                                                dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session)})
             losses.append(loss)
             learning_rates.append(dddqn.session.run(dddqn.learning_rate))
@@ -284,6 +334,9 @@ if __name__ == "__main__":
             loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
                                                           dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session)})
             print("Loss: {}".format(loss))
+            if loss > 1000:
+                print("The algorithm diverged. Ending run.")
+                sys.exit(0)
         if i%report_policy_rate==0 and i>0:
             print("Policies at epoch {}:".format(i))
             for braid in seed_braids:
@@ -311,10 +364,10 @@ if __name__ == "__main__":
     #save losses
     save_losses_file_name=save_job_name+"_losses"
     losses=np.array(losses)
-    outfile=open(save_buffer_file_name,'wb')
+    outfile=open(save_losses_file_name,'wb')
     np.save(outfile, losses)
     outfile.close()
-    print("Losses saved in file: {}".format(losses_file_name))
+    print("Losses saved in file: {}".format(save_losses_file_name))
     #save learning_rates
     save_lr_file_name=save_job_name+"_learning_rates"
     learning_rates=np.array(learning_rates)
