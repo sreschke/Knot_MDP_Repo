@@ -90,7 +90,7 @@ class Double_Dueling_DQN():
         if display:
             print("Filling replay buffer...")
         actions_list=[]
-        while self.replay_buffer.tree.filled_size() < self.replay_buffer.memory_size:
+        while len(self.replay_buffer.buffer) < self.replay_buffer.capacity:
             if len(actions_list)<max_actions_length:
                 action=self.Environment.random_action()
             else:
