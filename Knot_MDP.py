@@ -148,9 +148,12 @@ if __name__ == "__main__":
         an action list and the achieved score"""
         actions=[]
         slice=SE(braid, max_braid_index, max_braid_length)
-        while not slice.is_Terminal() and len(actions)<=max_actions_length:
-            action=sess.run(dddqn.online_network.forward_action_graph,
-                            feed_dict={dddqn.online_network.X_in: np.reshape(slice.encode_state(), (1, dddqn.online_network.input_size))})[0]
+        while not slice.is_Terminal():
+            if len(actions) < max_actions_length:
+                action=sess.run(dddqn.online_network.forward_action_graph,
+                                feed_dict={dddqn.online_network.X_in: np.reshape(slice.encode_state(), (1, dddqn.online_network.input_size))})[0]
+            else:
+                action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"]
             slice.action(action)
             actions.append(action)
         return actions, slice.eulerchar[1]

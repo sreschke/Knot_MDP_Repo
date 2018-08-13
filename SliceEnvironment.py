@@ -540,9 +540,7 @@ class SliceEnv():
     # Associating numbers 0 through 13 to the braid word actions defined above.
     def action(self, action_number):
         """Associating numbers 0 through 13 to the braid word actions defined above.
-        This is also where the reward function is defined"""
-        big_penalty=10
-        old_encoding=self.encode_state()
+        This is also where the reward function for the MDP is implemented"""
         old_score=self.eulerchar[1]
         if action_number==1:
             self.move_down()
@@ -575,15 +573,10 @@ class SliceEnv():
         for component in self.components:
             assert component > 0, "Error"
         encoding=self.encode_state()
-        if (old_encoding==encoding).all():
-            reward=-big_penalty
-        else:
-            reward=-self.inaction_penalty+self.eulerchar[1]-old_score
+        reward=-self.inaction_penalty+self.eulerchar[1]-old_score
         terminal=self.is_Terminal()
         for component in self.components:
             assert component in self.eulerchar.keys(), "Components and Eulerchar have become misaligned. Components: {} Eulerchar: {}".format(self.components, self.eulerchar)
-        #update state_tuple
-        #self.state_tuple=self.get_state_tuple()
         return reward, encoding, int(terminal)    
 
     # One-hot encodes the cursor position and the braid word.  
