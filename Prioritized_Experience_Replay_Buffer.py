@@ -3,9 +3,9 @@
 #Research Paper: https://arxiv.org/pdf/1511.05952.pdf
 #The orinal implementation doesn't properly normalize the weights
 #########################################################################################
-import numpy
+import numpy as np
 import random
-from Sum_Tree import SumTree
+from sum_tree import SumTree
 
 
 class Prioritized_Experience_Replay_Buffer(object):
@@ -87,7 +87,7 @@ class Prioritized_Experience_Replay_Buffer(object):
 
         #FIXME we should divide by max weight in buffer not max weight in sample
         weights = [ i/max(weights) for i in weights] # Normalize for stability
-        
+        weights = np.array(weights) #cast weights to numpy array
         return out, weights, indices
 
     def priority_update(self, indices, priorities):

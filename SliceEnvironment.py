@@ -82,7 +82,7 @@ class SliceEnv():
                          10: "Far comm",
                          11: "Add Positive crossing",
                          12: "Add Negative crossing"}
-        self.inverse_action_map={"Remove Crosing": 0,
+        self.inverse_action_map={"Remove Crossing": 0,
                                  "Move Down": 1,
                                  "Move Up": 2,
                                  "Move Left": 3,

@@ -91,7 +91,7 @@ class Double_Dueling_DQN():
             print("Filling replay buffer...")
         actions_list=[]
         while self.replay_buffer.tree.filled_size() < self.replay_buffer.memory_size:
-            if len(actions_list)<max_actions_length:
+            if len(actions_list)<max_actions_length and not self.check_eulerchars(euler_char_reset):
                 action=self.Environment.random_action()
             else:
                 action=self.Environment.slice.inverse_action_map["Remove Crossing"]
@@ -100,7 +100,7 @@ class Double_Dueling_DQN():
             priority=abs(reward)
             self.replay_buffer.add(data=(state, action, reward, next_state, terminal),
                                    priority=priority)
-            if terminal or self.check_eulerchars(euler_char_reset):
+            if terminal:
                 state=self.Environment.initialize_state()
                 actions_list=[]
             else:

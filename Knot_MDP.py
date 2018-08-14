@@ -158,19 +158,6 @@ if __name__ == "__main__":
             actions.append(action)
         return actions, slice.eulerchar[1]
 
-    #Old functions used to load dataframes
-    #def str_to_array(string):
-    #    """converts a string representation of an array to an array. Called in load_start_states_buffer() function"""
-    #    return np.array(ast.literal_eval(string.replace(",", "").replace("[ ", "[").replace("  ", " ").replace(" ", ",")))  
-
-    #def load_start_states_buffer(file_name):
-    #    """loads the start_states_buffer in file_name and reformats the data. Returns a dataframe"""
-    #    df=pd.read_csv(file_name)
-    #    df["Braid"]=df["Braid"].apply(str_to_array)
-    #    df["Components"]=df["Components"].apply(str_to_array)
-    #    df["Cursor"]=df["Cursor"].apply(str_to_array)
-    #    df["Eulerchar"]=df["Eulerchar"].apply(ast.literal_eval)
-    #    return df
 
     def print_hyperparameters(hyperparameters):
         print("Hyperparameters:")
@@ -306,21 +293,23 @@ if __name__ == "__main__":
     actions_list=[]
     for i in range(num_epochs):
         for j in range(moves_per_epoch):
-            if len(actions_list)<max_actions_length:
+            if len(actions_list)<max_actions_length and not dddqn.check_eulerchars(euler_char_reset):
                 action=dddqn.epsilon_greedy_action(state)
             else:
                 action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"] #policy after max_actions_length actions is to remove all crossings
             actions_list.append(action)
             reward, next_state, terminal = dddqn.Environment.take_action(action)
-            #FIXME not properly getting priority
             priority=dddqn.calculate_priorities([state], [action], [reward], [next_state], [terminal])[0]
             dddqn.replay_buffer.add(data=(state, action, reward, next_state, terminal), priority=priority)
-            if terminal or dddqn.check_eulerchars(euler_char_reset):
+            if terminal:
                 state=dddqn.Environment.initialize_state()
                 actions_list=[]
             else:
                 state=next_state
         transitions, weights, indices = dddqn.replay_buffer.get_batch(beta)
+        #reshape weights
+        #FIXME: figure out how to pass weights into train_step
+        weights = np.tile(np.reshape(weights, newshape=(batch_size, 1)), output_size)
         #FIXME figure out how we need anneal beta
         states, actions, rewards, next_states, terminals = zip(*transitions) #unzip transitions as tuples
         priorities=dddqn.calculate_priorities(states, actions, rewards, next_states, terminals)
