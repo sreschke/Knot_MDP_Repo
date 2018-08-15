@@ -4,7 +4,7 @@ import copy
 
 class SliceEnv():
     
-    def __init__(self,braid_word=[],max_braid_index=12,max_braid_length=20,inaction_penalty=0.005,starting_knot_strand=1):
+    def __init__(self,braid_word=[],max_braid_index=12,max_braid_length=20,inaction_penalty=0.05,starting_knot_strand=1):
         # The maximum length a braid word can be, which is fixed once the environment is instantiated. 
         self.max_braid_length=max_braid_length
         assert len(braid_word) <= max_braid_length, "Cannot initialize with braid with length longer than max_braid_length"

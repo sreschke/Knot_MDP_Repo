@@ -78,6 +78,9 @@ class Double_Dueling_DQN():
         self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate, momentum=0.95)
         self.session=session
 
+        #place-holders
+        self.td_weights=tf.placeholder(dtype=tf.float32, shape=(None, self.online_network.output_size), name="td_error_weights")
+
         #Computation Graphs
         self.TD_error=self.get_TD_error()
         self.loss=self.get_loss()
@@ -131,14 +134,11 @@ class Double_Dueling_DQN():
         return int(self.session.run(self.online_network.forward_action_graph, 
                                     feed_dict={self.online_network.X_in: np.reshape(state, (1, self.online_network.input_size))}))
 
-    def train_step(self, current_states, actions, rewards, next_states, terminals, weights, display_loss=False):
+    def train_step(self, current_states, actions, rewards, next_states, terminals, weights):
         targets=self.get_targets(current_states, actions, rewards, next_states, terminals, session=self.session) #Values
         self.session.run(self.train_op, feed_dict={self.online_network.X_in: current_states,
                                                    self.online_network.y_in: targets,
-                                                   weights: weights})
-        if display_loss:
-            print(self.session.run(self.loss, feed_dict={self.online_network.X_in: current_states,
-                                                         self.online_network.y_in: targets}))
+                                                   self.td_weights: weights})
         return    
    
     def get_loss(self):
@@ -149,8 +149,7 @@ class Double_Dueling_DQN():
             #predictions=self.online_network.forward_values_graph #C graph
             #loss=tf.losses.mean_squared_error(labels=self.online_network.y_in, predictions=predictions)
             TD_error=self.TD_error
-            weights=tf.placeholder(dtype=tf.float32, shape=(None, self.online_network.output_size), name="error_weights")
-            weighted_error=tf.multiply(TD_error, weights)
+            weighted_error=tf.multiply(TD_error, self.td_weights)
             loss=tf.reduce_mean(tf.square(weighted_error))
             return loss
 
@@ -227,7 +226,7 @@ class Double_Dueling_DQN():
 
     def calculate_priorities(self, states, actions, rewards, next_states, terminals):
         TD_error=self.session.run(tf.abs(self.TD_error),
-                               feed_dict={self.online_network.X_in: states,
-                                          self.online_network.y_in: self.get_targets(states, actions, rewards, next_states, terminals, self.session)})
+                                  feed_dict={self.online_network.X_in: states,
+                                             self.online_network.y_in: self.get_targets(states, actions, rewards, next_states, terminals, self.session)})
         priorities=TD_error[range(len(TD_error)), actions]+self.replay_buffer.epsilon
         return priorities

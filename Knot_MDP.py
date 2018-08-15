@@ -14,6 +14,7 @@ import os.path
 
 
 if __name__ == "__main__":
+    print("Using Prioritized Experience Replay Implementation...")
     ###############################################################################################
     #Hyperpararameters
     ###############################################################################################
@@ -299,25 +300,24 @@ if __name__ == "__main__":
                 action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"] #policy after max_actions_length actions is to remove all crossings
             actions_list.append(action)
             reward, next_state, terminal = dddqn.Environment.take_action(action)
-            priority=dddqn.calculate_priorities([state], [action], [reward], [next_state], [terminal])[0]
+            priority=dddqn.replay_buffer.get_max_priority()
             dddqn.replay_buffer.add(data=(state, action, reward, next_state, terminal), priority=priority)
             if terminal:
                 state=dddqn.Environment.initialize_state()
                 actions_list=[]
             else:
                 state=next_state
-        transitions, weights, indices = dddqn.replay_buffer.get_batch(beta)
-        #reshape weights
-        #FIXME: figure out how to pass weights into train_step
-        weights = np.tile(np.reshape(weights, newshape=(batch_size, 1)), output_size)
+        transitions, td_weights, indices = dddqn.replay_buffer.get_batch(beta)
+        td_weights = np.tile(np.reshape(td_weights, newshape=(batch_size, 1)), output_size)
         #FIXME figure out how we need anneal beta
         states, actions, rewards, next_states, terminals = zip(*transitions) #unzip transitions as tuples
         priorities=dddqn.calculate_priorities(states, actions, rewards, next_states, terminals)
         dddqn.replay_buffer.priority_update(indices, priorities)
-        dddqn.train_step(states, actions, rewards, next_states, terminals, weights)
+        dddqn.train_step(states, actions, rewards, next_states, terminals, td_weights)
         if i % store_rate==0:
             loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
-                                                               dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session)})
+                                                          dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session),
+                                                          dddqn.td_weights: td_weights})
             losses.append(loss)
             learning_rates.append(dddqn.session.run(dddqn.learning_rate))
             epsilons.append(dddqn.epsilon)

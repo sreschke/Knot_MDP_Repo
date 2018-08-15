@@ -86,7 +86,9 @@ class Prioritized_Experience_Replay_Buffer(object):
         self.priority_update(indices, priorities) # Revert priorities
 
         #FIXME we should divide by max weight in buffer not max weight in sample
-        weights = [ i/max(weights) for i in weights] # Normalize for stability
+        min_priority=self.get_min_priority()
+        max_weight = (min_priority * self.memory_size) ** (-beta)
+        weights = [ i/max_weight for i in weights] # Normalize for stability
         weights = np.array(weights) #cast weights to numpy array
         return out, weights, indices
 
@@ -100,7 +102,7 @@ class Prioritized_Experience_Replay_Buffer(object):
         """
         for i, p in zip(indices, priorities):
             self.tree.val_update(i, p**self.alpha)
-    
+
     def reset_alpha(self, alpha):
         """ Reset a exponent alpha.
         Parameters
@@ -111,3 +113,14 @@ class Prioritized_Experience_Replay_Buffer(object):
         priorities = [self.tree.get_val(i)**-old_alpha for i in range(self.tree.filled_size())]
         self.priority_update(range(self.tree.filled_size()), priorities)
 
+    def get_max_priority(self):
+        """gets the max priority in the buffer"""
+        index=self.tree.tree_size-2**(self.tree.tree_level-1)
+        return max(self.tree.tree[index:index+self.memory_size])
+
+    def get_min_priority(self):
+        """gets the max priority in the buffer"""
+        index=self.tree.tree_size-2**(self.tree.tree_level-1)
+        return min(self.tree.tree[index:index+self.memory_size])
+
+    
