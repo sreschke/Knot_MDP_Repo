@@ -1,7 +1,7 @@
 from SliceEnvironment import SliceEnv
 import random
 from Environment import Environment
-from Start_States_Buffer import Start_States_Buffer as SSB
+from Start_States_Buffer2 import Start_States_Buffer as SSB
 import copy
 
 #An Environment Wrapper class needs to be defined for any given environment. Below is an implementation for
@@ -30,8 +30,8 @@ class Slice_Environment_Wrapper(Environment):
 
     def initialize_state(self):
         """When the algorithm reaches a terminal state, the state is initialized by calling
-        this function. The start state gets pulled from the seed_frame with probability 
-        seed_prob; otherwise, the state is pulled from the explore frame."""
+        this function. The start state gets pulled from the seed_queue with probability 
+        seed_prob; otherwise, the state is pulled from the explore_queue."""
         x=random.random()
         if x <= self.seed_prob:
             self.slice=self.start_states_buffer.sample_state(queue="Seed")

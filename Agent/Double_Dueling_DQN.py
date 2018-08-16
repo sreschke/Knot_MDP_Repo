@@ -6,7 +6,6 @@ import copy
 import time
 
 from Dueling_DQN import Dueling_DQN as DDQN
-from Uniform_Experience_Replay_Buffer import Uniform_Experience_Replay_Buffer as UERB
 
 ###################################################################################################
 #Design
@@ -93,16 +92,14 @@ class Double_Dueling_DQN():
         if display:
             print("Filling replay buffer...")
         actions_list=[]
-        while self.replay_buffer.tree.filled_size() < self.replay_buffer.memory_size:
+        while self.replay_buffer.get_size() < self.replay_buffer.capacity:
             if len(actions_list)<max_actions_length and not self.check_eulerchars(euler_char_reset):
                 action=self.Environment.random_action()
             else:
                 action=self.Environment.slice.inverse_action_map["Remove Crossing"]
             actions_list.append(action)
             reward, next_state, terminal=self.Environment.take_action(action)
-            priority=abs(reward)
-            self.replay_buffer.add(data=(state, action, reward, next_state, terminal),
-                                   priority=priority)
+            self.replay_buffer.add((state, action, reward, next_state, terminal))
             if terminal:
                 state=self.Environment.initialize_state()
                 actions_list=[]

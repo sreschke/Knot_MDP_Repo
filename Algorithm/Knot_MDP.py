@@ -1,5 +1,28 @@
+from pathlib import Path
+import os
+import platform
+import sys
+
+#Get parent folder of current file
+p=str(Path(os.path.abspath(__file__)).parents[1])
+
+#set platform dependent file separator
+if platform.system() == "Linux":
+    separator="/"
+elif platform.system() == "Windows":
+    separator="\\"
+else:
+    assert True==False, "FIXME: running on different operating system"
+
+#Adding Agent, Environment, Experience_Replay, etc. folders to python path
+sys.path.insert(0, p+separator+"Agent")
+sys.path.insert(0, p+separator+"Environment")
+sys.path.insert(0, p+separator+"Experience_Replay")
+sys.path.insert(0, p+separator+"Experience_Replay"+separator+"replay_memory")
+
+#Loading needed modules
 from Double_Dueling_DQN import Double_Dueling_DQN as DDDQN
-from Prioritized_Experience_Replay_Buffer import Prioritized_Experience_Replay_Buffer as PERB
+from Prioritized_Experience_Replay_Buffer import PERB_Wrapper as PERB
 from Slice_Environment_Wrapper import Slice_Environment_Wrapper as SEW
 from Start_States_Buffer2 import Start_States_Buffer as SSB
 from SliceEnvironment import SliceEnv as SE
@@ -9,8 +32,31 @@ import numpy as np
 import pandas as pd
 import time
 import copy
-import sys
-import os.path
+
+
+###############################################################################################
+#Helper functions
+###############################################################################################
+def get_policy(braid, max_braid_index, max_braid_length, session, max_actions_length):
+    """Used to get the current policies of the seed_braids during training. Returns
+    an action list and the achieved score"""
+    actions=[]
+    slice=SE(braid, max_braid_index, max_braid_length)
+    while not slice.is_Terminal():
+        if len(actions) < max_actions_length:
+            action=sess.run(dddqn.online_network.forward_action_graph,
+                            feed_dict={dddqn.online_network.X_in: np.reshape(slice.encode_state(), (1, dddqn.online_network.input_size))})[0]
+        else:
+            action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"]
+        slice.action(action)
+        actions.append(action)
+    return actions, slice.eulerchar[1]
+
+
+def print_hyperparameters(hyperparameters):
+    print("Hyperparameters:")
+    for key, value in hyperparameters.items():
+        print("\t{}={}".format(key, value))
 
 
 if __name__ == "__main__":
@@ -22,21 +68,24 @@ if __name__ == "__main__":
         print("Manually setting hyperparameters...")
         load_stuff=False #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc. from a previous training run
         #name files for matplotlib lists, replay_buffer, model weights etc.
-        load_job_name="SliceEnv_try_29" #name used to load files from previous job
-        save_job_name="SliceEnv_try_29.1" #name used to save files
+        load_job_name="SliceEnv_try_0" #name used to load files from previous job
+        save_job_name="SliceEnv_try_0" #name used to save files
+
         #Replay buffer
-        replay_capacity=1000 #needs to be large enough to hold a representative sample of the state space
+        replay_capacity=2**17 #needs to be a power of 2
         batch_size=512
-        alpha=0.6 #see section B.2.2 (pg. 14 table 3) in paper: https://arxiv.org/pdf/1511.05952.pdf
+        start_alpha=0.6 #see section B.2.2 (pg. 14 table 3) in paper: https://arxiv.org/pdf/1511.05952.pdf
         replay_epslion=0.01 #introduced on page 4 in paper: https://arxiv.org/pdf/1511.05952.pdf
-        #FIXME: figure out how beta needs to anneal
-        beta=0.5 #see page 5 of paper: https://arxiv.org/pdf/1511.05952.pdf
-        
+        beta=0.4 #needs to satisfy 0<=beta<=1; annealed linearly to 1; see page 5 of paper: https://arxiv.org/pdf/1511.05952.pdf
+
         #Start States Buffer
-        seed_braids=seed_braids=[[1, 1, 1],
-                                 [1, 1, 1, 2, -1, 2], 
-                                 [1, 1, -2, 1, -2, -2], 
-                                 [1, 1, 1, -2, 1, -2]] #The braids we want the algorithm to solve. Info stored in seed_queue
+        seed_braids=[[1],
+                     [1, 1],
+                     [1, 1, 1],
+                     [1, -2, 1, -2],
+                     [1, 1, 1, 2, -1, 2],
+                     [1, 1, -2, 1, -2, -2],
+                     [1, 1, 1, -2, 1, -2]] #The braids we want the algorithm to solve. Info stored in seed_queue
 
         start_states_capacity=100000
         max_braid_index=6
@@ -44,7 +93,7 @@ if __name__ == "__main__":
 
         #Slice Environment Wrapper (Environment)
         uniform=True #when picking a random action, actions are sampled uniformly if uniform=True. Otherwise, actions are selected using distribution defined with action_probabilites
-        move_penalty=0.09 #penalty incurred for taking any action
+        move_penalty=0.05 #penalty incurred for taking any action
         seed_prob=0.5 #probability of picking from seed_frame when initializing state
 
 
@@ -69,9 +118,15 @@ if __name__ == "__main__":
         epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
 
         store_rate=10000 #how often (in epochs) to store values for matplotlib lists
-        report_policy_rate=1000 #how often (in epochs) to report the policies
+        report_policy_rate=10000 #how often (in epochs) to report the policies
         num_epochs=2000000 #how many epochs to run the algorithm for
         moves_per_epoch=4
+
+        #Don't change these
+        final_alpha=start_alpha
+        alpha_change=(final_alpha-start_alpha)/num_epochs
+        final_beta=1
+        beta_change=(final_beta-beta)/num_epochs
         if not load_stuff:
             assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
 
@@ -116,8 +171,9 @@ if __name__ == "__main__":
     #construct hyperparameters dict - used to print hyperparameters in .out file
     hyperparameters={"replay_capacity": replay_capacity,
                      "batch_size": batch_size,
-                     "alpha": alpha,
+                     "start_alpha": start_alpha,
                      "replay_epsilon": replay_epslion,
+                     "beta": beta,
                      "seed_braids": seed_braids,
                      "start_states_capacity": start_states_capacity,
                      "max_braid_index": max_braid_index,
@@ -140,30 +196,6 @@ if __name__ == "__main__":
                      "num_epochs": num_epochs,
                      "moves_per_epoch": moves_per_epoch}
 
-
-    ###############################################################################################
-    #Helper functions
-    ###############################################################################################
-    def get_policy(braid, max_braid_index, max_braid_length, session, max_actions_length):
-        """Used to get the current policies of the seed_braids during training. Returns
-        an action list and the achieved score"""
-        actions=[]
-        slice=SE(braid, max_braid_index, max_braid_length)
-        while not slice.is_Terminal():
-            if len(actions) < max_actions_length:
-                action=sess.run(dddqn.online_network.forward_action_graph,
-                                feed_dict={dddqn.online_network.X_in: np.reshape(slice.encode_state(), (1, dddqn.online_network.input_size))})[0]
-            else:
-                action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"]
-            slice.action(action)
-            actions.append(action)
-        return actions, slice.eulerchar[1]
-
-
-    def print_hyperparameters(hyperparameters):
-        print("Hyperparameters:")
-        for key, value in hyperparameters.items():
-            print("\t{}={}".format(key, value))
     ###############################################################################################
     #Disable AVX and AVX2 warnings
     ###############################################################################################
@@ -185,7 +217,7 @@ if __name__ == "__main__":
     print("Pre-Training")
     print("="*line_width)
     print("Instantiating Replay Buffer...")
-    replay_buffer=PERB(memory_size=replay_capacity, batch_size=batch_size, alpha=alpha, epsilon=replay_epslion)
+    replay_buffer=PERB(capacity=replay_capacity, batch_size=batch_size, epsilon=replay_epslion, alpha=start_alpha, beta=beta)
     load_buffer=load_stuff
     load_buffer_file_name=load_job_name+'_replay_buffer'
     if load_buffer:
@@ -252,15 +284,21 @@ if __name__ == "__main__":
     load_losses_file_name=load_job_name+"_losses"
     load_lr_file_name=load_job_name+"_learning_rates"
     load_eps_file_name=load_job_name+"_epsilons"
+    load_alphas_file_name=load_job_name+"_alphas"
+    load_betas_file_name=load_job_name+"_betas"
     if load_arrays:
         print("Loading lists for matplotlib...")
         losses=list(np.load(load_losses_file_name))
         learning_rates=list(np.load(load_lr_file_name))
         epsilons=list(np.load(load_eps_file_name))
+        alphas=list(np.load(load_alphas_file_name))
+        betas=list(np.load(load_betas_file_name))
     else:
         losses=[]
         learning_rates=[]
         epsilons=[]
+        alphas=[]
+        betas=[]
     ###############################################################################################
     #Get pre-training policies
     ###############################################################################################
@@ -300,19 +338,17 @@ if __name__ == "__main__":
                 action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"] #policy after max_actions_length actions is to remove all crossings
             actions_list.append(action)
             reward, next_state, terminal = dddqn.Environment.take_action(action)
-            priority=dddqn.replay_buffer.get_max_priority()
-            dddqn.replay_buffer.add(data=(state, action, reward, next_state, terminal), priority=priority)
+            dddqn.replay_buffer.add((state, action, reward, next_state, terminal))
             if terminal:
                 state=dddqn.Environment.initialize_state()
                 actions_list=[]
             else:
                 state=next_state
-        transitions, td_weights, indices = dddqn.replay_buffer.get_batch(beta)
-        td_weights = np.tile(np.reshape(td_weights, newshape=(batch_size, 1)), output_size)
-        #FIXME figure out how we need anneal beta
+        indices, priorities, IS_weights, transitions = dddqn.replay_buffer.get_batch()
+        td_weights = np.tile(np.reshape(IS_weights, newshape=(batch_size, 1)), output_size)
         states, actions, rewards, next_states, terminals = zip(*transitions) #unzip transitions as tuples
         priorities=dddqn.calculate_priorities(states, actions, rewards, next_states, terminals)
-        dddqn.replay_buffer.priority_update(indices, priorities)
+        dddqn.replay_buffer.PERB.update_priorities(indices, priorities)
         dddqn.train_step(states, actions, rewards, next_states, terminals, td_weights)
         if i % store_rate==0:
             loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
@@ -321,14 +357,19 @@ if __name__ == "__main__":
             losses.append(loss)
             learning_rates.append(dddqn.session.run(dddqn.learning_rate))
             epsilons.append(dddqn.epsilon)
+            alphas.append(dddqn.replay_buffer.PERB.alpha)
+            betas.append(dddqn.replay_buffer.PERB.beta)
         if i < num_decrease_epochs and not load_stuff:
-            dddqn.epsilon=dddqn.epsilon+epsilon_change
+            dddqn.epsilon+=epsilon_change
+            dddqn.replay_buffer.PERB.alpha+=alpha_change
+            dddqn.replay_buffer.PERB.beta+=beta_change
         if i%dddqn.transfer_rate==0 and i>0:
             print("Epoch {} out of {}".format(i, num_epochs))
             print("Copying Weights...")
             dddqn.copy_weights()
             loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
-                                                          dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session)})
+                                                          dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session),
+                                                          dddqn.td_weights: td_weights})
             print("Loss: {}".format(loss))
             if loss > 1000:
                 print("The algorithm diverged. Ending run.")
@@ -352,11 +393,7 @@ if __name__ == "__main__":
     print("="*line_width)
     print("Model saved in file: {}".format(save_path))
     #pickle replay buffer
-    save_buffer_file_name=save_job_name+'_replay_buffer'
-    outfile=open(save_buffer_file_name,'wb')
-    pickle.dump(dddqn.replay_buffer.buffer, outfile)
-    outfile.close()
-    print("Replay Buffer saved in file: {}".format(save_buffer_file_name))
+    print("replay buffer saving has not been implemented...")
     #save losses
     save_losses_file_name=save_job_name+"_losses"
     losses=np.array(losses)
@@ -378,6 +415,20 @@ if __name__ == "__main__":
     np.save(outfile, epsilons)
     outfile.close()
     print("Epsilons saved in file: {}".format(save_eps_file_name))
+    #save alphas
+    save_alphas_file_name=save_job_name+"_alphas"
+    alphas=np.array(alphas)
+    outfile=open(save_alphas_file_name, "wb")
+    np.save(outfile, alphas)
+    outfile.close()
+    print("Alphas saved in file: {}".format(save_alphas_file_name))
+    #save betas
+    save_betas_file_name=save_job_name+"_betas"
+    betas=np.array(betas)
+    outfile=open(save_betas_file_name, "wb")
+    np.save(outfile, betas)
+    outfile.close()
+    print("Betas saved in file {}".format(save_betas_file_name))
     #save explore_queue
     save_start_states_file_name=save_job_name+"_start_states"
     outfile=open(save_start_states_file_name,'wb')
