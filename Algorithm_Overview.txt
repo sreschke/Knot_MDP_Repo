@@ -1,3 +1,6 @@
+FIXME: Rewrite this for Asynchoronous One step Q-learning
+
+
 Instantiate Replay Buffer, Start States Buffer, Environment, Double Dueling DQN
 Fill Replay Buffer
 Initialize state

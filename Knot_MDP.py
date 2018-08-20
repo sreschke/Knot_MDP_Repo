@@ -17,6 +17,7 @@ if __name__ == "__main__":
     ###############################################################################################
     #Hyperpararameters
     ###############################################################################################
+    print("Using Uniform Replay Implementation")
     if len(sys.argv)==1: #if no command line arguments are passed, manually define hyperparameters
         print("Manually setting hyperparameters...")
         load_stuff=True #Controls whether the program should load the network weights, replay_buffer, matplotlib lists, etc. from a previous training run
