@@ -1,3 +1,5 @@
+FIXME: write this for Asynchronous One-Step Q-Learning
+
 action_probabilites:list[float] - list to control probability distribution for randomly picking actions
 architectures:dict[(string, int)] - the architexture of the neural networks
 euler_char_reset:int - algorithm will initialize state if any eulerchars falls below euler_char_reset

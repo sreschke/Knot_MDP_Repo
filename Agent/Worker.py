@@ -41,8 +41,9 @@ class Worker(object):
             #operations
             self.loss = tf.reduce_sum(tf.square(tf.subtract(self.targets, self.online_network.forward_values_graph)))
             local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
-            self.gradients = tf.gradients(self.loss,local_vars)
-            self.apply_grads = trainer.apply_gradients(zip(grads,global_vars))
+            self.gradients = tf.gradients(self.loss, local_vars)
+            global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'Global')
+            self.apply_grads = trainer.apply_gradients(zip(self.gradients, global_vars))
 
 
     def epsilon_greedy_action(self, state):
@@ -63,10 +64,10 @@ class Worker(object):
         WARNING: the given algorithm does not take into account terminal transitions.
         In these instances, the played_targets should be set to the reward.
         
-        Also see lines 9 and 10 in algorithm 1 from the paper """
+        Also see lines 9 and 10 in algorithm 1 from the paper https://arxiv.org/pdf/1602.01783.pdf"""
         assert session is not None, "A tf.Session() must be passed into get_targets"
         current_state = np.reshape(current_state, (1, self.online_network.input_size))
-        next_state = np.reshapte(next_state, (1, self.online_network.input_size))
+        next_state = np.reshape(next_state, (1, self.online_network.input_size))
         with tf.name_scope("Target"):
             #Using the NEXT STATE from the sampled batch, run the ONLINE network in order 
             #to find the Q maximizing action argmax_a_(Q(s', a)
@@ -85,9 +86,6 @@ class Worker(object):
             played_target = np.array(reward) + self.gamma*np.multiply(selected_t_q_val, 1-terminal)
             targets[action] = played_target
             return targets
-
-    def get_gradients(self):
-        pass
 
     def work(self):
         pass
