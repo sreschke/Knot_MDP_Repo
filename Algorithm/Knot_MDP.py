@@ -73,7 +73,7 @@ if __name__ == "__main__":
 
         #Replay buffer
         replay_capacity=2**20 #needs to be a power of 2
-        batch_size=256
+        batch_size=512
         start_alpha=0.6 #see section B.2.2 (pg. 14 table 3) in paper: https://arxiv.org/pdf/1511.05952.pdf
         replay_epslion=0.01 #introduced on page 4 in paper: https://arxiv.org/pdf/1511.05952.pdf
         beta=0.4 #needs to satisfy 0<=beta<=1; annealed linearly to 1; see page 5 of paper: https://arxiv.org/pdf/1511.05952.pdf
@@ -114,12 +114,12 @@ if __name__ == "__main__":
         #final_epsilon and will not change.
         start_epsilon=1
         final_epsilon=0.1
-        num_decrease_epochs=5000
+        num_decrease_epochs=250000
         epsilon_change=(final_epsilon-start_epsilon)/num_decrease_epochs
 
         store_rate=10000 #how often (in epochs) to store values for matplotlib lists
         report_policy_rate=10000 #how often (in epochs) to report the policies
-        num_epochs=10000 #how many epochs to run the algorithm for
+        num_epochs=2000000 #how many epochs to run the algorithm for
         moves_per_epoch=4
 
         #Don't change these
