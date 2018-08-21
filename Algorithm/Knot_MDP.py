@@ -350,6 +350,7 @@ if __name__ == "__main__":
         priorities=dddqn.calculate_priorities(states, actions, rewards, next_states, terminals)
         dddqn.replay_buffer.PERB.update_priorities(indices, priorities)
         dddqn.train_step(states, actions, rewards, next_states, terminals, td_weights)
+        print("Epoch: {}".format(i))
         if i % store_rate==0:
             loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
                                                           dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session),
