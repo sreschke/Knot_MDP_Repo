@@ -72,8 +72,8 @@ if __name__ == "__main__":
         save_job_name="SliceEnv_try_0" #name used to save files
 
         #Replay buffer
-        replay_capacity=2**16 #needs to be a power of 2
-        batch_size=32
+        replay_capacity=2**20 #needs to be a power of 2
+        batch_size=256
         start_alpha=0.6 #see section B.2.2 (pg. 14 table 3) in paper: https://arxiv.org/pdf/1511.05952.pdf
         replay_epslion=0.01 #introduced on page 4 in paper: https://arxiv.org/pdf/1511.05952.pdf
         beta=0.4 #needs to satisfy 0<=beta<=1; annealed linearly to 1; see page 5 of paper: https://arxiv.org/pdf/1511.05952.pdf

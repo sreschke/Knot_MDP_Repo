@@ -82,6 +82,7 @@ class Double_Dueling_DQN():
 
         #Computation Graphs
         self.TD_error=self.get_TD_error()
+        self.pre_priorities=tf.abs(self.TD_error)
         self.loss=self.get_loss()
         self.train_op=self.get_train_operation() #operation that updates the weights in the online network
         
@@ -222,7 +223,8 @@ class Double_Dueling_DQN():
         return
 
     def calculate_priorities(self, states, actions, rewards, next_states, terminals):
-        TD_error=self.session.run(tf.abs(self.TD_error),
+        """Calculates the priority of the states using the TD_error"""
+        TD_error=self.session.run(self.pre_priorities,
                                   feed_dict={self.online_network.X_in: states,
                                              self.online_network.y_in: self.get_targets(states, actions, rewards, next_states, terminals, self.session)})
         priorities=TD_error[range(len(TD_error)), actions]+self.replay_buffer.epsilon
