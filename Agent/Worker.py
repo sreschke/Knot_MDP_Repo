@@ -16,23 +16,27 @@ class Worker(object):
                 scope,
                 trainer
                 ):
-        """This class is implemented to perform algorithm 1 from the paper: https://arxiv.org/pdf/1602.01783.pdf"""
+        """This class is implemented to perform algorithm 1 from the paper: https://arxiv.org/pdf/1602.01783.pdf
+        Uses the github repository https://github.com/awjuliani/DeepRL-Agents/blob/master/A3C-Doom.ipynb as a reference"""
+        
+        #target network needs to be outside of variable scope so that we don't calculate the gradients with respect to its parameters
+        self.target_network = DDQN(input_size=input_size,
+                                   output_size=output_size,
+                                   architextures=architextures,
+                                   network_name="Target")
+
         with tf.variable_scope(scope):
             self.online_network = DDQN(input_size=input_size,
                                        output_size=output_size,
                                        architextures=architextures,
                                        network_name="Online")
-            self.target_network = DDQN(input_size=input_size,
-                                       output_size=output_size,
-                                       architextures=architextures,
-                                       network_name="Target")
+            
             self.Environment=Environment
             self.gamma=gamma
             self.epsilon=0.1
             self.learning_rate=tf.constant(learning_rate, dtype=tf.float32)
             self.transfer_rate=transfer_rate
-            self.global_step = tf.Variable(0, name='global_step', trainable=False)
-            self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate, momentum=0.95)
+            #self.global_step = tf.Variable(0, name='global_step', trainable=False)
             self.session=session
 
             #place-holders
@@ -42,8 +46,11 @@ class Worker(object):
             self.loss = tf.reduce_sum(tf.square(tf.subtract(self.targets, self.online_network.forward_values_graph)))
             local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
             self.gradients = tf.gradients(self.loss, local_vars)
+            self.gradients_ph = []
+            for tensor in self.gradients:
+                self.gradients_ph.append(tf.placeholder(dtype=tf.float32, shape=tensor.shape))
             global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'Global')
-            self.apply_grads = trainer.apply_gradients(zip(self.gradients, global_vars))
+            self.apply_grads = trainer.apply_gradients(zip(self.gradients_ph, global_vars))
 
 
     def epsilon_greedy_action(self, state):
@@ -89,3 +96,86 @@ class Worker(object):
 
     def work(self):
         pass
+
+
+from pathlib import Path
+import os
+import platform
+import sys
+#Adding Agent, Environment, Experience_Replay, etc. folders to python path
+sys.path.insert(0, r"C:\Users\Spencer\Documents\VisualStudio2017\Projects\KnotProblem\Knot_MDP\Agent")
+sys.path.insert(0, r"C:\Users\Spencer\Documents\VisualStudio2017\Projects\KnotProblem\Knot_MDP\Environment")
+from Slice_Environment_Wrapper import Slice_Environment_Wrapper as SEW
+from Start_States_Buffer2 import Start_States_Buffer as SSB
+import tensorflow as tf
+from Worker import Worker
+from Global_Network import Global_Network as GN
+
+start_states_capacity=100000
+max_braid_index=6
+max_braid_length=10
+seed_braids = [[1], [1, 1], [1, 1, 1]]
+move_penalty=0.05
+
+seed_prob=0.5
+uniform=True
+
+#Instantiate a Worker Object
+starts_buffer=SSB(capacity=start_states_capacity,
+                      max_braid_index=max_braid_index,
+                      max_braid_length=max_braid_length,
+                      seed_braids=seed_braids,
+                      move_penalty=move_penalty)
+
+environment_name="SliceEnv"
+Environment=SEW(max_braid_index=max_braid_index,
+                max_braid_length=max_braid_length,
+                inaction_penalty=move_penalty,
+                start_states_buffer=starts_buffer,
+                seed_prob=seed_prob,
+                uniform=uniform)
+
+input_size=len(Environment.slice.encode_state())
+output_size = 13
+architextures={'Hidden': (512, 512, 512), 'Value': (512, 1), 'Advantage': (512, 13)}
+transfer_rate=2000
+gamma=0.99
+learning_rate=0.000000001
+sess = tf.Session()
+
+global_network = GN(input_size, output_size, architextures, scope="Global")
+
+trainer=tf.train.RMSPropOptimizer(learning_rate=learning_rate, momentum=0.95)
+
+worker=Worker(input_size,
+              output_size,
+              architextures,
+              transfer_rate,
+              gamma,
+              learning_rate,
+              Environment,
+              sess,
+              scope="Worker1",
+              trainer=trainer)
+
+state=worker.Environment.initialize_state()
+action=worker.Environment.random_action()
+reward, next_state, terminal = worker.Environment.slice.action(action)
+
+sess.run(tf.global_variables_initializer())
+targets=worker.get_target(state, action, reward, next_state, terminal, sess)
+state = np.reshape(state, (1, len(state)))
+
+print("Before:")
+global_network.global_network.print_weights(sess)
+grads = sess.run(worker.gradients, feed_dict={worker.online_network.X_in: state, 
+                                              worker.targets: targets})
+print("Grads:")
+print(grads)
+feed_dict={worker.online_network.X_in: state, worker.targets: targets}
+feed_dict={**dict(zip(worker.gradients_ph, grads)), **feed_dict}
+sess.run(worker.apply_grads, feed_dict=feed_dict)
+
+print("After:")
+global_network.global_network.print_weights(sess)
+print("Done")
