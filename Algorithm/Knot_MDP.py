@@ -76,7 +76,7 @@ if __name__ == "__main__":
         batch_size=512
         start_alpha=0.6 #see section B.2.2 (pg. 14 table 3) in paper: https://arxiv.org/pdf/1511.05952.pdf
         replay_epslion=0.01 #introduced on page 4 in paper: https://arxiv.org/pdf/1511.05952.pdf
-        beta=0.4 #needs to satisfy 0<=beta<=1; annealed linearly to 1; see page 5 of paper: https://arxiv.org/pdf/1511.05952.pdf
+        start_beta=0.4 #needs to satisfy 0<=start_beta<=1; annealed linearly to 1; see page 5 of paper: https://arxiv.org/pdf/1511.05952.pdf
 
         #Start States Buffer
         seed_braids=[[1],
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         final_alpha=start_alpha
         alpha_change=(final_alpha-start_alpha)/num_epochs
         final_beta=1
-        beta_change=(final_beta-beta)/num_epochs
+        beta_change=(final_beta-start_beta)/num_epochs
         if not load_stuff:
             assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
 
@@ -143,6 +143,9 @@ if __name__ == "__main__":
         save_job_name=df.loc["save_job_name"]
         replay_capacity=int(df.loc["replay_capacity"])
         batch_size=int(df.loc["batch_size"])
+        start_alpha=df.loc["start_alpha"]
+        replay_epslion=df.loc["replay_epsilon"]
+        start_beta=df.loc["start_beta"]
         seed_braids=seed_braids=[list(x) for x in df.loc["seed_braids"]]
         start_states_capacity=int(df.loc["start_states_capacity"])
         max_braid_index=int(df.loc["max_braid_index"])
@@ -165,6 +168,10 @@ if __name__ == "__main__":
         report_policy_rate=int(df.loc["report_policy_rate"])
         num_epochs=int(df.loc["num_epochs"])
         moves_per_epoch=int(df.loc["moves_per_epoch"])
+        final_alpha=start_alpha
+        alpha_change=(final_alpha-start_alpha)/num_epochs
+        final_beta=1
+        beta_change=(final_beta-start_beta)/num_epochs
         if not load_stuff:
             assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
 
@@ -173,7 +180,7 @@ if __name__ == "__main__":
                      "batch_size": batch_size,
                      "start_alpha": start_alpha,
                      "replay_epsilon": replay_epslion,
-                     "beta": beta,
+                     "start_beta": start_beta,
                      "seed_braids": seed_braids,
                      "start_states_capacity": start_states_capacity,
                      "max_braid_index": max_braid_index,
@@ -217,7 +224,7 @@ if __name__ == "__main__":
     print("Pre-Training")
     print("="*line_width)
     print("Instantiating Replay Buffer...")
-    replay_buffer=PERB(capacity=replay_capacity, batch_size=batch_size, epsilon=replay_epslion, alpha=start_alpha, beta=beta)
+    replay_buffer=PERB(capacity=replay_capacity, batch_size=batch_size, epsilon=replay_epslion, alpha=start_alpha, beta=start_beta)
     load_buffer=load_stuff
     load_buffer_file_name=load_job_name+'_replay_buffer'
     if load_buffer:
@@ -350,7 +357,7 @@ if __name__ == "__main__":
         priorities=dddqn.calculate_priorities(states, actions, rewards, next_states, terminals)
         dddqn.replay_buffer.PERB.update_priorities(indices, priorities)
         dddqn.train_step(states, actions, rewards, next_states, terminals, td_weights)
-        print("Epoch: {}".format(i))
+        #print("Epoch: {}".format(i))
         if i % store_rate==0:
             loss=dddqn.session.run(dddqn.loss, feed_dict={dddqn.online_network.X_in: states,
                                                           dddqn.online_network.y_in: dddqn.get_targets(states, actions, rewards, next_states, terminals, dddqn.session),
