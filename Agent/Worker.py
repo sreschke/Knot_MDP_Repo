@@ -51,7 +51,7 @@ class Worker(object):
                 self.gradients_ph.append(tf.placeholder(dtype=tf.float32, shape=tensor.shape))
             global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'Global')
             self.apply_grads = trainer.apply_gradients(zip(self.gradients_ph, global_vars))
-
+        self.update_local_ops = self.update_target_graph('Global', scope)
 
     def epsilon_greedy_action(self, state):
         if random.random() < self.epsilon:
@@ -94,8 +94,58 @@ class Worker(object):
             targets[action] = played_target
             return targets
 
-    def work(self):
+    def work(self, sess):
+        #FIXME figure out how to make global counter T
+        self.copy_global_weights(sess)
+        self.copy_weights()
+
+        t=0
+        grads=None #FIXME
+        state = self.Environment.initialize_state()
+        while T < T_MAX:
+            action = self.epsilon_greedy_action(state)
+            reward, next_state, terminal = self.Environment.take_action(action)
+            target = self.get_target(state, action, reward, next_state, terminal, sess)
+            to_add = sess.run(self.gradients, feed_dict={self.online_network.X_in: state,
+                                                         self.targets: targets})
+            grads = map(np.add, grads, to_add)
+
+
         pass
+
+    def update_target_graph(self, from_scope,to_scope):
+        from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope)
+        to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope)
+
+        op_holder = []
+        for from_var,to_var in zip(from_vars,to_vars):
+            op_holder.append(to_var.assign(from_var))
+        return op_holder
+
+    def copy_global_weights(self, session):
+        """copies the global variables to the worker's online variables"""
+        session.run(self.update_local_ops)
+        return
+
+    def copy_weights(self):
+        #Copies the weights from the online network over to the target network. Rebuilds 
+        #target_network's computation graph
+        #Copy hidden weights and biases
+        for i in range(len(self.online_network.hidden_weights)):
+            self.target_network.hidden_weights[i]=self.online_network.hidden_weights[i]
+            self.target_network.hidden_biases[i]=self.online_network.hidden_biases[i]
+        #Copy value weights and biases
+        for i in range(len(self.online_network.value_weights)):
+            self.target_network.value_weights[i]=self.online_network.value_weights[i]
+            self.target_network.value_biases[i]=self.online_network.value_biases[i]
+        #Copy advantage weights and biases
+        for i in range(len(self.online_network.advantage_weights)):
+            self.target_network.advantage_weights[i]=self.online_network.advantage_weights[i]
+            self.target_network.advantage_biases[i]=self.online_network.advantage_biases[i]
+       
+        #rebuild target computation graphs
+        self.target_network.forward_values_graph, self.target_network.forward_action_graph = self.target_network.forward()
+        return
 
 
 from pathlib import Path
@@ -178,4 +228,7 @@ sess.run(worker.apply_grads, feed_dict=feed_dict)
 
 print("After:")
 global_network.global_network.print_weights(sess)
+
+worker.copy_global_weights(sess)
+worker.copy_weights()
 print("Done")
