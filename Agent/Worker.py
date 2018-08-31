@@ -9,6 +9,7 @@ class Worker(object):
                 output_size, #the number of possible actions
                 architextures,
                 transfer_rate, #how often to copy the online weights to target weights
+                asyc_update_rate, #how often to update global network
                 gamma, #discount factor
                 learning_rate,
                 Environment,
@@ -36,6 +37,7 @@ class Worker(object):
             self.epsilon=0.1
             self.learning_rate=tf.constant(learning_rate, dtype=tf.float32)
             self.transfer_rate=transfer_rate
+            self.asyc_update_rate=asyc_update_rate
             #self.global_step = tf.Variable(0, name='global_step', trainable=False)
             self.session=session
 
@@ -95,23 +97,45 @@ class Worker(object):
             return targets
 
     def work(self, sess):
-        #FIXME figure out how to make global counter T
         self.copy_global_weights(sess)
         self.copy_weights()
+        global T
+        global T_MAX
+        switch=True
 
         t=0
-        grads=None #FIXME
-        state = self.Environment.initialize_state()
+        state=self.Environment.initialize_state()
+        
         while T < T_MAX:
-            action = self.epsilon_greedy_action(state)
+            action=self.epsilon_greedy_action(state)
             reward, next_state, terminal = self.Environment.take_action(action)
-            target = self.get_target(state, action, reward, next_state, terminal, sess)
-            to_add = sess.run(self.gradients, feed_dict={self.online_network.X_in: state,
-                                                         self.targets: targets})
-            grads = map(np.add, grads, to_add)
+            targets = self.get_target(state, action, reward, next_state, terminal, sess)
+            state = np.reshape(state, (1, len(state)))
+
+            #FIXME: figure out how to accumulate the gradients
+            if switch:
+                grads = sess.run(self.gradients, feed_dict={self.online_network.X_in: state,
+                                                            self.targets: targets})
+                switch=False
+            else:
+                to_add=sess.run(self.gradients, feed_dict={self.online_network.X_in: state,
+                                                             self.targets: targets})
+                #FIXME: there might be a faster way to do this next line. This is where we're accumulateing the grads
+                grads=[np.array(list((map(np.add, x, y)))) for x, y in zip(grads, to_add)]
+
+            state = next_state
+            T+=1
+            t+=1
+            if T % self.transfer_rate == 0:
+                self.copy_weights()
+            if T % self.asyc_update_rate == 0:
+                feed_dict=dict(zip(self.gradients_ph, grads))
+                sess.run(self.apply_grads, feed_dict=feed_dict)
+                switch=True
+            
 
 
-        pass
+        print("Finished")
 
     def update_target_graph(self, from_scope,to_scope):
         from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope)
@@ -128,8 +152,8 @@ class Worker(object):
         return
 
     def copy_weights(self):
-        #Copies the weights from the online network over to the target network. Rebuilds 
-        #target_network's computation graph
+        #Copies the weights from the worker's online network over to the target 
+        #network. Rebuilds target_network's computation graph
         #Copy hidden weights and biases
         for i in range(len(self.online_network.hidden_weights)):
             self.target_network.hidden_weights[i]=self.online_network.hidden_weights[i]
@@ -189,6 +213,7 @@ input_size=len(Environment.slice.encode_state())
 output_size = 13
 architextures={'Hidden': (512, 512, 512), 'Value': (512, 1), 'Advantage': (512, 13)}
 transfer_rate=2000
+asyc_update_rate=10
 gamma=0.99
 learning_rate=0.000000001
 sess = tf.Session()
@@ -201,6 +226,7 @@ worker=Worker(input_size,
               output_size,
               architextures,
               transfer_rate,
+              asyc_update_rate,
               gamma,
               learning_rate,
               Environment,
@@ -208,27 +234,30 @@ worker=Worker(input_size,
               scope="Worker1",
               trainer=trainer)
 
-state=worker.Environment.initialize_state()
-action=worker.Environment.random_action()
-reward, next_state, terminal = worker.Environment.slice.action(action)
-
+T_MAX = 100
+T = 0
 sess.run(tf.global_variables_initializer())
-targets=worker.get_target(state, action, reward, next_state, terminal, sess)
-state = np.reshape(state, (1, len(state)))
+worker.work(sess)
 
-print("Before:")
-global_network.global_network.print_weights(sess)
-grads = sess.run(worker.gradients, feed_dict={worker.online_network.X_in: state, 
-                                              worker.targets: targets})
-print("Grads:")
-print(grads)
-feed_dict={worker.online_network.X_in: state, worker.targets: targets}
-feed_dict={**dict(zip(worker.gradients_ph, grads)), **feed_dict}
-sess.run(worker.apply_grads, feed_dict=feed_dict)
+#state=worker.Environment.initialize_state()
+#action=worker.Environment.random_action()
+#reward, next_state, terminal = worker.Environment.slice.action(action)
 
-print("After:")
-global_network.global_network.print_weights(sess)
+#targets=worker.get_target(state, action, reward, next_state, terminal, sess)
+#state = np.reshape(state, (1, len(state)))
 
-worker.copy_global_weights(sess)
-worker.copy_weights()
-print("Done")
+#print("Before:")
+#global_network.global_network.print_weights(sess)
+#grads = sess.run(worker.gradients, feed_dict={worker.online_network.X_in: state, 
+#                                              worker.targets: targets})
+#print("Grads:")
+#print(grads)
+#feed_dict=dict(zip(worker.gradients_ph, grads))
+#sess.run(worker.apply_grads, feed_dict=feed_dict)
+
+#print("After:")
+#global_network.global_network.print_weights(sess)
+
+#worker.copy_global_weights(sess)
+#worker.copy_weights()
+#print("Done")
