@@ -4,21 +4,38 @@ import random
 import tensorflow as tf
 
 class Worker(object):
+    """This class is implemented to perform algorithm 1 from the paper: 
+    https://arxiv.org/pdf/1602.01783.pdf
+
+    Uses the github repository:
+    https://github.com/awjuliani/DeepRL-Agents/blob/master/A3C-Doom.ipynb
+    as a reference.
+        
+    A worker object has it's copy of the environment; as it interacts with 
+    the environment, it accumulates gradients which it uses to update the
+    parameters of the global network. 
+    
+    A worker has both an online network and a target network both with dueling
+    architextures. Throughout training, the online network is updated using
+    targets from the target network. The weights in the online network are 
+    periodically copied to the weights in the target network.
+    Additionally, a worker object is able to copy the global network weights
+    to its online network weights.
+    
+    The most important function in this class is the work() function"""
     def __init__(self,
                 input_size, #get this from len(encoded_state)
                 output_size, #the number of possible actions
-                architextures,
+                architextures, #a dictionary specifying the dueling architexture
                 transfer_rate, #how often to copy the online weights to target weights
                 asyc_update_rate, #how often to update global network
                 gamma, #discount factor
                 learning_rate,
-                Environment,
-                session,
-                scope,
-                trainer
+                Environment, #The copy of the environment
+                session, # a tensorflow session
+                scope, #used to define variable scopes which are used to calculate gradients
+                trainer #the algorithm used to apply gradients
                 ):
-        """This class is implemented to perform algorithm 1 from the paper: https://arxiv.org/pdf/1602.01783.pdf
-        Uses the github repository https://github.com/awjuliani/DeepRL-Agents/blob/master/A3C-Doom.ipynb as a reference"""
         
         #target network needs to be outside of variable scope so that we don't calculate the gradients with respect to its parameters
         self.target_network = DDQN(input_size=input_size,
@@ -45,15 +62,73 @@ class Worker(object):
             self.targets = tf.placeholder(dtype=tf.float32, shape=(output_size,), name="Target")
 
             #operations
+            #mean squared error between targets and action values
             self.loss = tf.reduce_sum(tf.square(tf.subtract(self.targets, self.online_network.forward_values_graph)))
+            
+            #get all of the trainable network parameters
             local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+            
+            #derivatives of loss with respect to network weights 
             self.gradients = tf.gradients(self.loss, local_vars)
+            
+            #cast gradients to placeholders
             self.gradients_ph = []
             for tensor in self.gradients:
                 self.gradients_ph.append(tf.placeholder(dtype=tf.float32, shape=tensor.shape))
+            
+            #global network variables    
             global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'Global')
+            
+            #used to update the global network weights using accumulated gradients from work() function
             self.apply_grads = trainer.apply_gradients(zip(self.gradients_ph, global_vars))
+        
+        #Computation graph to copy global network weights to online network weights. 
+        #Called in copy_global_weights() function
         self.update_local_ops = self.update_target_graph('Global', scope)
+
+
+    def work(self, sess):
+        """Implementation of algorithm 1 from the paper: https://arxiv.org/pdf/1602.01783.pdf"""
+        self.copy_global_weights(sess)
+        self.copy_weights()
+        global T
+        global T_MAX
+        switch=True
+
+        t=0
+        state=self.Environment.initialize_state()
+        
+        while T < T_MAX:
+            #Get an epsilon-greedy action
+            action=self.epsilon_greedy_action(state)
+            #take that action and get the reward, next_state, and terminal variables
+            reward, next_state, terminal = self.Environment.take_action(action)
+            #calculate the targets for training
+            targets = self.get_target(state, action, reward, next_state, terminal, sess)
+            #reshape the state to feed into gradient calculation
+            state = np.reshape(state, (1, len(state)))
+            
+            if switch: #first time getting grads
+                grads = sess.run(self.gradients, feed_dict={self.online_network.X_in: state,
+                                                            self.targets: targets})
+                switch=False
+            else: #accumulate grads
+                to_add=sess.run(self.gradients, feed_dict={self.online_network.X_in: state,
+                                                             self.targets: targets})
+                #FIXME: there might be a faster way to do this next line. This is where we're accumulating the grads
+                grads=[np.array(list((map(np.add, x, y)))) for x, y in zip(grads, to_add)]
+
+            state = next_state
+            T+=1
+            t+=1
+            if T % self.transfer_rate == 0:
+                self.copy_weights() #copy online network weights to target network weights
+            if T % self.asyc_update_rate == 0 or terminal: #use gradients to update weights in global network
+                feed_dict=dict(zip(self.gradients_ph, grads))
+                sess.run(self.apply_grads, feed_dict=feed_dict)
+                switch=True
+            
+        print("Finished")
 
     def epsilon_greedy_action(self, state):
         if random.random() < self.epsilon:
@@ -96,48 +171,8 @@ class Worker(object):
             targets[action] = played_target
             return targets
 
-    def work(self, sess):
-        self.copy_global_weights(sess)
-        self.copy_weights()
-        global T
-        global T_MAX
-        switch=True
-
-        t=0
-        state=self.Environment.initialize_state()
-        
-        while T < T_MAX:
-            action=self.epsilon_greedy_action(state)
-            reward, next_state, terminal = self.Environment.take_action(action)
-            targets = self.get_target(state, action, reward, next_state, terminal, sess)
-            state = np.reshape(state, (1, len(state)))
-
-            #FIXME: figure out how to accumulate the gradients
-            if switch:
-                grads = sess.run(self.gradients, feed_dict={self.online_network.X_in: state,
-                                                            self.targets: targets})
-                switch=False
-            else:
-                to_add=sess.run(self.gradients, feed_dict={self.online_network.X_in: state,
-                                                             self.targets: targets})
-                #FIXME: there might be a faster way to do this next line. This is where we're accumulateing the grads
-                grads=[np.array(list((map(np.add, x, y)))) for x, y in zip(grads, to_add)]
-
-            state = next_state
-            T+=1
-            t+=1
-            if T % self.transfer_rate == 0:
-                self.copy_weights()
-            if T % self.asyc_update_rate == 0:
-                feed_dict=dict(zip(self.gradients_ph, grads))
-                sess.run(self.apply_grads, feed_dict=feed_dict)
-                switch=True
-            
-
-
-        print("Finished")
-
     def update_target_graph(self, from_scope,to_scope):
+        """Used to set worker network parameters to those of global network."""
         from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope)
         to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope)
 
@@ -147,14 +182,14 @@ class Worker(object):
         return op_holder
 
     def copy_global_weights(self, session):
-        """copies the global variables to the worker's online variables"""
+        """copies the global variables to the worker's online network variables"""
         session.run(self.update_local_ops)
         return
 
     def copy_weights(self):
-        #Copies the weights from the worker's online network over to the target 
-        #network. Rebuilds target_network's computation graph
-        #Copy hidden weights and biases
+        """Copies the weights from the worker's online network over to 
+        the target network. Rebuilds target_network's computation graph
+        Copy hidden weights and biases"""
         for i in range(len(self.online_network.hidden_weights)):
             self.target_network.hidden_weights[i]=self.online_network.hidden_weights[i]
             self.target_network.hidden_biases[i]=self.online_network.hidden_biases[i]

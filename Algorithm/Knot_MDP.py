@@ -1,8 +1,37 @@
-from Double_Dueling_DQN import Double_Dueling_DQN as DDDQN
-from Uniform_Experience_Replay_Buffer import Uniform_Experience_Replay_Buffer as UERB
+#Imports for setting path variables. Needed since the project has mulitple
+#folders
+from pathlib import Path
+import os
+import platform
+import sys
+
+#Get parent folder of current file
+p=str(Path(os.path.abspath(__file__)).parents[1])
+
+#set platform dependent file separator
+if platform.system() == "Linux":
+    separator="/"
+elif platform.system() == "Windows":
+    separator="\\"
+else:
+    assert True==False, "FIXME: running on different operating system"
+
+#Adding Agent, Algorithm, Environment folders to python path so modules
+#in these folders can be imported later
+sys.path.insert(0, p+separator+"Agent")
+sys.path.insert(0, p+separator+"Algorithm")
+sys.path.insert(0, p+separator+"Environment")
+
+#Imports for Algorithm
 from Slice_Environment_Wrapper import Slice_Environment_Wrapper as SEW
 from Start_States_Buffer2 import Start_States_Buffer as SSB
 from SliceEnvironment import SliceEnv as SE
+from Worker import Worker
+from Global_Network import Global_Network as GN
+
+import threading
+import multiprocessing
+
 import pickle
 import tensorflow as tf
 import numpy as np
@@ -24,10 +53,6 @@ if __name__ == "__main__":
         #name files for matplotlib lists, replay_buffer, model weights etc.
         load_job_name="SliceEnv_try_0" #name used to load files from previous job
         save_job_name="SliceEnv_try_0" #name used to save files
-    
-        #Replay buffer
-        replay_capacity=200000 #needs to be large enough to hold a representative sample of the state space
-        batch_size=512
 
         #Start States Buffer
         seed_braids=[[1],
@@ -47,13 +72,24 @@ if __name__ == "__main__":
         move_penalty=0.05 #penalty incurred for taking any action
         seed_prob=0.5 #probability of picking from seed_frame when initializing state
 
-        #Double Dueling DQN
-        output_size=13 #should be the number of actions the agent can take in the MDP
-        architectures={'Hidden': (512, 512, 512), 'Value': (512, 1), 'Advantage': (512, 13)}
-
-        transfer_rate=2000 #how often (in epochs) to copy weights from online network to target network
-        gamma=0.99
+        #Workers
+        num_workers = multiprocessing.cpu_count() # Set workers to number of available CPU threads
+        output_size = 13
+        architextures = {'Hidden': (512, 512, 512), 'Value': (512, 1), 'Advantage': (512, 13)}
+        transfer_rate = 2000
+        asyc_update_rate = 100 #FIXME find value from paper or github implementation
+        gamma = 0.99
         learning_rate=0.000000001
+        trainer=tf.train.RMSPropOptimizer(learning_rate=learning_rate, momentum=0.95)
+
+
+        ##Double Dueling DQN
+        #output_size=13 #should be the number of actions the agent can take in the MDP
+        #architectures={'Hidden': (512, 512, 512), 'Value': (512, 1), 'Advantage': (512, 13)}
+
+        #transfer_rate=2000 #how often (in epochs) to copy weights from online network to target network
+        #gamma=0.99
+        #learning_rate=0.000000001
 
         #Training
         euler_char_reset=-8 #algorithm will initialize state if any eulerchar falls below euler_char_reset
@@ -75,6 +111,7 @@ if __name__ == "__main__":
             assert num_epochs>=num_decrease_epochs, "num_epochs is less than num_decrease_epochs"
     
     elif len(sys.argv)==2: #if a row number is passed as a commandline argument, load hyperparameters from a dataframe
+        #FIXME: rewrite this section for asynchronous method
         assert sys.argv[1].isdigit(), "Got a non-integer command line argument. Got {} which is a {}".format(sys.argv[1], type(sys.argv[1]))
         hyperparameter_file_name="hyperparameter_df"
         assert os.path.exists(hyperparameter_file_name), "The file {} does not exist".format(hyperparameter_file_name)
@@ -116,6 +153,7 @@ if __name__ == "__main__":
         assert True==False, "Too many command line arguments passed to Knot_MDP.py"
 
     #construct hyperparameters dict - used to print hyperparameters in .out file
+    #FIXME: adjust this for asynchronous methods
     hyperparameters={"replay_capacity": replay_capacity,
                      "batch_size": batch_size,
                      "seed_braids": seed_braids,
@@ -150,10 +188,10 @@ if __name__ == "__main__":
         slice=SE(braid, max_braid_index, max_braid_length)
         while not slice.is_Terminal():
             if len(actions) < max_actions_length:
-                action=sess.run(dddqn.online_network.forward_action_graph,
-                                feed_dict={dddqn.online_network.X_in: np.reshape(slice.encode_state(), (1, dddqn.online_network.input_size))})[0]
+                action=sess.run(global_network.network.online_network.forward_action_graph,
+                                feed_dict={global_network.network.online_network.X_in: np.reshape(slice.encode_state(), (1, global_network.network.online_network.input_size))})[0]
             else:
-                action=dddqn.Environment.slice.inverse_action_map["Remove Crossing"]
+                action=env_list[0].slice.inverse_action_map["Remove Crossing"]
             slice.action(action)
             actions.append(action)
         return actions, slice.eulerchar[1]
@@ -180,7 +218,6 @@ if __name__ == "__main__":
     #Disable AVX and AVX2 warnings
     ###############################################################################################
     tick=time.time()
-    import os
     os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
     ###############################################################################################
     #Print hyperparameters
@@ -190,63 +227,70 @@ if __name__ == "__main__":
     if load_stuff:
         print("Will load files from " + load_job_name)
     print_hyperparameters(hyperparameters)
+    
     ###############################################################################################
-    #Instantiate Replay Buffer
-    ###############################################################################################
+    #Instantiate Multiple copies of Start States Buffer
+    ###############################################################################################    
     print("="*line_width)
     print("Pre-Training")
     print("="*line_width)
-    print("Instantiating Replay Buffer...")
-    replay_buffer=UERB(capacity=replay_capacity, batch_size=batch_size)
-    load_buffer=load_stuff
-    load_buffer_file_name=load_job_name+'_replay_buffer'
-    if load_buffer:
-        print("Loading buffer...")    
-        infile=open(load_buffer_file_name,'rb')
-        loaded_deque=pickle.load(infile)
-        infile.close()
-        replay_buffer.buffer=loaded_deque
-    ###############################################################################################
-    #Instantiate Start States Buffer
-    ###############################################################################################    
     load_start_states_file_name=load_job_name+"_start_states"
-    starts_buffer=SSB(capacity=start_states_capacity,
-                      max_braid_index=max_braid_index,
-                      max_braid_length=max_braid_length,
-                      seed_braids=seed_braids,
-                      move_penalty=move_penalty)
+
+    sb_list = []
+    for i in range(num_workers):
+        sb_list.append(SSB(capacity=start_states_capacity,
+                           max_braid_index=max_braid_index,
+                           max_braid_length=max_braid_length,
+                           seed_braids=seed_braids,
+                           move_penalty=move_penalty))
+
     if load_stuff:
-        print("Loading Start States Buffer...")
+        print("Loading Start States Buffers...")
         infile=open(load_start_states_file_name,'rb')
         loaded_deque=pickle.load(infile)
         infile.close()
-        starts_buffer.explore_queue=loaded_deque
+        for i in range(num_workers):
+            sb_list[i].explore_queue=loaded_deque.copy()
     ###############################################################################################
-    #Instantiate Environment
+    #Instantiate Multiple Copies of Environment
     ###############################################################################################
     environment_name="SliceEnv"
-    print("Instantiating " + environment_name + " Environment...")
-    Environment=SEW(max_braid_index=max_braid_index,
-                    max_braid_length=max_braid_length,
-                    inaction_penalty=move_penalty,
-                    start_states_buffer=starts_buffer,
-                    seed_prob=seed_prob,
-                    uniform=uniform)
+    print("Instantiating " + environment_name + " Environments...")
+
+    env_list = []
+    for i in range(num_workers):
+        env_list.append(SEW(max_braid_index=max_braid_index,
+                            max_braid_length=max_braid_length,
+                            inaction_penalty=move_penalty,
+                            start_states_buffer=sb_list[i],
+                            seed_prob=seed_prob,
+                            uniform=uniform))
     ###############################################################################################
-    #Instantiate Double Dueling DQN
+    #Create Workers
     ###############################################################################################
-    print("Instantiating Double Dueling DQN...")
-    input_size=len(Environment.slice.encode_state())
+    print("Instantiating Workers...")
+    input_size=len(env_list[0].slice.encode_state())
     sess=tf.Session()
-    dddqn = DDDQN(input_size=input_size,
-                  output_size=output_size,
-                  architextures=architectures,
-                  transfer_rate=transfer_rate,
-                  gamma=gamma,
-                  learning_rate=learning_rate,
-                  Environment=Environment,
-                  replay_buffer=replay_buffer,
-                  session=sess)
+
+    worker_list = []
+    for i in range(num_workers):
+        worker_name = "Worker{}".format(i)
+        worker_list.append(Worker(input_size,
+                                  output_size,
+                                  architextures,
+                                  transfer_rate,
+                                  asyc_update_rate,
+                                  gamma,
+                                  learning_rate,
+                                  env_list[i],
+                                  sess,
+                                  scope=worker_name,
+                                  trainer=trainer))
+
+    ##########################################################################################
+    #Create Global Network
+    ##########################################################################################
+    global_network = GN(input_size, output_size, architextures, scope="Global")
     ##########################################################################################
     #Restore model or Initialize Weights
     ##########################################################################################
@@ -256,7 +300,7 @@ if __name__ == "__main__":
     if restore:
         print("Restoring Weights...")
         saver.restore(sess, "./"+load_model_path)
-        dddqn.copy_weights() #VERY IMPORTANT SINCE TARGET NETWORK IS NOT SAVED
+        global_network.copy_weights() #VERY IMPORTANT SINCE TARGET NETWORK IS NOT SAVED
     else:
         print("Initializing Network Weights...")
         sess.run(tf.global_variables_initializer())
@@ -286,21 +330,12 @@ if __name__ == "__main__":
         print("\tPolicy for braid {}: {}".format(braid, actions))
         print("\tAchieved Euler characteristic: {}".format(score))
     #########################################################################################
-    #Fill replay buffer
-    #########################################################################################
-    if not load_buffer:
-        print("Filling Buffer...")
-        dddqn.initialize_replay_buffer(display=False, euler_char_reset=euler_char_reset, max_actions_length=max_actions_length)
-    tock=time.time()
-    print("Pre-training set-up took {} seconds".format(tock-tick))
-    #########################################################################################
     #Training
     #########################################################################################
     print("="*line_width)
     print("Training")
     print("="*line_width)
     tick=time.time()
-    state=dddqn.Environment.slice.encode_state()
  
     if not load_stuff:
         dddqn.epsilon=start_epsilon

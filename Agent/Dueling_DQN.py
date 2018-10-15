@@ -2,6 +2,8 @@ import tensorflow as tf
 import copy
 
 class Dueling_DQN(object):
+    """A neural network class deuling archtexture: standard body as well
+    as value and advantage streams"""
     def __init__(self, input_size, output_size, architextures, network_name):
         assert (architextures["Value"][-1]==1), "Last element of value_architextures must be 1!"
         assert (architextures["Advantage"][-1]==output_size), "Last element of advantage_architextures must equal output_size!"
@@ -96,6 +98,8 @@ class Dueling_DQN(object):
             return q_values, opt_action
 
     def print_weights(self, session):
+        """Print the weights and biases in main body, advantage stream,
+        and value stream"""
         line_length=100
         print("="*line_length)
         print("Hidden Layers")
