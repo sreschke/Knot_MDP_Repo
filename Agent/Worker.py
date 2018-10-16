@@ -23,6 +23,11 @@ class Worker(object):
     to its online network weights.
     
     The most important function in this class is the work() function"""
+
+    # a static class variable that is shared among all worker instances
+    #throughout training, 
+    epsilon = 0.1
+
     def __init__(self,
                 input_size, #get this from len(encoded_state)
                 output_size, #the number of possible actions
@@ -32,6 +37,8 @@ class Worker(object):
                 gamma, #discount factor
                 learning_rate,
                 Environment, #The copy of the environment
+                start_epsilon, #for epsilon-greedy action selection
+                epsilon_change, #used to anneal epsilon after every training epoch
                 session, # a tensorflow session
                 scope, #used to define variable scopes which are used to calculate gradients
                 trainer #the algorithm used to apply gradients
@@ -43,6 +50,10 @@ class Worker(object):
                                    architextures=architextures,
                                    network_name="Target")
 
+        #set Worker.epsilon to start_epsilon
+        Worker.epsilon = start_epsilon
+        self.epsilon_change = epsilon_change
+
         with tf.variable_scope(scope):
             self.online_network = DDQN(input_size=input_size,
                                        output_size=output_size,
@@ -51,7 +62,6 @@ class Worker(object):
             
             self.Environment=Environment
             self.gamma=gamma
-            self.epsilon=0.1
             self.learning_rate=tf.constant(learning_rate, dtype=tf.float32)
             self.transfer_rate=transfer_rate
             self.asyc_update_rate=asyc_update_rate
@@ -121,8 +131,9 @@ class Worker(object):
             state = next_state
             T+=1
             t+=1
-            if T % self.transfer_rate == 0:
-                self.copy_weights() #copy online network weights to target network weights
+            self.anneal_epsilon()
+            if T % self.transfer_rate == 0: #copy online network weights to target network weights
+                self.copy_weights() 
             if T % self.asyc_update_rate == 0 or terminal: #use gradients to update weights in global network
                 feed_dict=dict(zip(self.gradients_ph, grads))
                 sess.run(self.apply_grads, feed_dict=feed_dict)
@@ -131,7 +142,7 @@ class Worker(object):
         print("Finished")
 
     def epsilon_greedy_action(self, state):
-        if random.random() < self.epsilon:
+        if random.random() < Worker.epsilon:
             return self.Environment.random_action()
         else:
             return self.greedy_action(state)
@@ -205,6 +216,14 @@ class Worker(object):
         #rebuild target computation graphs
         self.target_network.forward_values_graph, self.target_network.forward_action_graph = self.target_network.forward()
         return
+
+    def anneal_epsilon(self):
+        """Uses epsilon_change member to update the static member 
+        Worker.epsilon.
+
+        Changing Worker.epsilon in this way will change epsilon for all other
+        worker objects as well"""
+        Worker.epsilon -= abs(self.epsilon_change)
 
 
 from pathlib import Path
