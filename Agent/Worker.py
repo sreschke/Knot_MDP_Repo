@@ -24,9 +24,14 @@ class Worker(object):
     
     The most important function in this class is the work() function"""
 
-    # a static class variable that is shared among all worker instances
-    #throughout training, 
-    epsilon = 0.1
+    # a static class variable that is shared among all worker instances. 
+    #This approach allows epsilon to be linearly annealed across all 
+    #worker objects throughout training.
+    #The annealing occurs in the function anneal_epsilon() which is called
+    #from the work() function
+    epsilon
+    epsilon_change
+    num_decrease_epochs
 
     def __init__(self,
                 input_size, #get this from len(encoded_state)
@@ -50,9 +55,9 @@ class Worker(object):
                                    architextures=architextures,
                                    network_name="Target")
 
-        #set Worker.epsilon to start_epsilon
+        #initialize static epislon members
         Worker.epsilon = start_epsilon
-        self.epsilon_change = epsilon_change
+        Worker.epsilon_change = epsilon_change
 
         with tf.variable_scope(scope):
             self.online_network = DDQN(input_size=input_size,
@@ -138,8 +143,7 @@ class Worker(object):
                 feed_dict=dict(zip(self.gradients_ph, grads))
                 sess.run(self.apply_grads, feed_dict=feed_dict)
                 switch=True
-            
-        print("Finished")
+
 
     def epsilon_greedy_action(self, state):
         if random.random() < Worker.epsilon:
@@ -223,7 +227,7 @@ class Worker(object):
 
         Changing Worker.epsilon in this way will change epsilon for all other
         worker objects as well"""
-        Worker.epsilon -= abs(self.epsilon_change)
+        Worker.epsilon -= abs(Worker.epsilon_change)
 
 
 from pathlib import Path
